@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { AnalysisProvider } from './context/AnalysisContext';
 import { Navbar } from './components/Navbar';
 import { AuthDrawer } from './components/AuthDrawer';
 import { LandingPage } from './pages/LandingPage';
@@ -106,9 +107,11 @@ export const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <Router>
-          <AppLayout />
-        </Router>
+        <AnalysisProvider>
+          <Router>
+            <AppLayout />
+          </Router>
+        </AnalysisProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

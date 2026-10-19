@@ -77,7 +77,7 @@ export const RecommendationsPage: React.FC = () => {
         </div>
 
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/dashboard?refresh=true')}
           className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-subtle self-start sm:self-auto"
         >
           <span>Run Fresh Analysis</span>

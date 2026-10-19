@@ -74,8 +74,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    await logoutUser();
-    setUser(null);
+    try {
+      await logoutUser();
+    } finally {
+      try {
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i);
+            if (key && key.startsWith('devprofile_analysis_cache_')) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach((k) => sessionStorage.removeItem(k));
+        }
+      } catch (e) {
+        console.warn('Failed to clear session cache on logout:', e);
+      }
+      setUser(null);
+    }
   };
 
   return (

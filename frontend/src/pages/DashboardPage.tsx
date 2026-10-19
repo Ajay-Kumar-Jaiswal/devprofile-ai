@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useAnalysis } from '../context/AnalysisContext';
 import { HeroSection } from '../components/HeroSection';
 import { ProfileHeader } from '../components/ProfileHeader';
 import { StatsGrid } from '../components/StatsGrid';
@@ -44,13 +45,19 @@ type PrimaryTab = 'overview' | 'ai' | 'audits' | 'recommendations' | 'history';
 
 export const DashboardPage: React.FC = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
+  const {
+    currentAnalysis,
+    saveAnalysis,
+    getCachedAnalysis,
+    updateAiAnalysis,
+  } = useAnalysis();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const [username, setUsername] = useState<string>('');
+  const [username, setUsername] = useState<string>(() => currentAnalysis?.username || '');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLoadingAi, setIsLoadingAi] = useState<boolean>(false);
-  const [analysisData, setAnalysisData] = useState<AnalysisResponse | null>(null);
+  const [analysisData, setAnalysisData] = useState<AnalysisResponse | null>(() => currentAnalysis);
   const [error, setError] = useState<{
     message: string;
     status?: number;
@@ -86,6 +93,7 @@ export const DashboardPage: React.FC = () => {
     try {
       const result = await fetchProfileAnalysis(userToAnalyze, isDemo);
       setAnalysisData(result);
+      saveAnalysis(result);
     } catch (err: any) {
       if (err instanceof ApiError) {
         if (err.status === 401 && !isDemo) {
@@ -124,6 +132,7 @@ export const DashboardPage: React.FC = () => {
     try {
       const snapshot = await getHistoryRunDetail(runId);
       setAnalysisData(snapshot);
+      saveAnalysis(snapshot);
       setUsername(login);
       setActiveTab('overview');
     } catch (err: any) {
@@ -141,13 +150,34 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  // Inspect search params and execute Flow A / Flow B on initial mount
+  // Inspect search params and execute Flow A / Flow B on initial mount or restore cached results
   useEffect(() => {
     if (isAuthLoading) return;
 
     const runIdParam = searchParams.get('run_id');
     const analyzeParam = searchParams.get('analyze') || searchParams.get('username');
     const demoParam = searchParams.get('demo') === 'true';
+    const forceRefresh = searchParams.get('refresh') === 'true';
+
+    // 0. Explicit Force Refresh requested (e.g. from "Run Fresh Analysis" on Progress page)
+    if (forceRefresh) {
+      const targetToRefresh =
+        analyzeParam?.trim() ||
+        analysisData?.username ||
+        currentAnalysis?.username ||
+        user?.connected_github?.github_login ||
+        user?.default_profile_username;
+
+      if (targetToRefresh) {
+        const isDemo =
+          targetToRefresh.toLowerCase() === 'alex-dev-demo' ||
+          targetToRefresh.toLowerCase() === 'demo';
+        autoAnalyzedRef.current = true;
+        navigate('/dashboard', { replace: true });
+        runAnalysis(targetToRefresh, isDemo);
+        return;
+      }
+    }
 
     // 1. If explicit run_id provided
     if (runIdParam) {
@@ -162,7 +192,9 @@ export const DashboardPage: React.FC = () => {
         getHistoryRunDetail(id)
           .then((snapshot) => {
             setAnalysisData(snapshot);
+            saveAnalysis(snapshot);
             setUsername(snapshot.username);
+            setActiveTab('overview');
           })
           .catch((err) => {
             setError({ message: err.detail || 'Could not load historical snapshot.' });
@@ -174,27 +206,80 @@ export const DashboardPage: React.FC = () => {
 
     // 2. If explicit analyze or username param provided
     if (analyzeParam) {
-      const isDemoHandle = analyzeParam.toLowerCase() === 'alex-dev-demo' || analyzeParam.toLowerCase() === 'demo';
+      const targetHandle = analyzeParam.trim();
+      const isDemoHandle =
+        targetHandle.toLowerCase() === 'alex-dev-demo' || targetHandle.toLowerCase() === 'demo';
       if (!user && !isDemoHandle) {
-        navigate('/login?redirect=' + encodeURIComponent(`/dashboard?analyze=${encodeURIComponent(analyzeParam)}`));
+        navigate('/login?redirect=' + encodeURIComponent(`/dashboard?analyze=${encodeURIComponent(targetHandle)}`));
         return;
       }
+
+      // Check if this profile is already loaded in state
+      if (analysisData && analysisData.username.toLowerCase() === targetHandle.toLowerCase()) {
+        autoAnalyzedRef.current = true;
+        if (username !== analysisData.username) {
+          setUsername(analysisData.username);
+        }
+        return;
+      }
+
+      // Check if this profile is available in cache
+      const cached = getCachedAnalysis(targetHandle);
+      if (cached && cached.username.toLowerCase() === targetHandle.toLowerCase()) {
+        autoAnalyzedRef.current = true;
+        setAnalysisData(cached);
+        saveAnalysis(cached);
+        setUsername(cached.username);
+        return;
+      }
+
+      // If not loaded and not in cache, execute fresh analysis
       autoAnalyzedRef.current = true;
-      runAnalysis(analyzeParam, isDemoHandle);
+      runAnalysis(targetHandle, isDemoHandle);
       return;
     }
 
     // 3. If explicit demo param requested from landing page CTA
     if (demoParam) {
+      if (analysisData && analysisData.is_demo_data) {
+        autoAnalyzedRef.current = true;
+        return;
+      }
+      const cachedDemo = getCachedAnalysis('alex-dev-demo');
+      if (cachedDemo && cachedDemo.is_demo_data) {
+        autoAnalyzedRef.current = true;
+        setAnalysisData(cachedDemo);
+        saveAnalysis(cachedDemo);
+        setUsername(cachedDemo.username);
+        return;
+      }
       autoAnalyzedRef.current = true;
       handleLoadDemo();
       return;
     }
 
-    // 4. Flow B: GitHub OAuth user connected handle auto-analysis
+    // 4. Normal navigation to /dashboard (e.g. from Navbar, History, Progress, Settings):
+    // If analysis is already present in state, preserve it immediately without refetching!
+    if (analysisData) {
+      autoAnalyzedRef.current = true;
+      if (!username && analysisData.username) {
+        setUsername(analysisData.username);
+      }
+      return;
+    }
+
+    // 5. If analysis is preserved in cache (e.g. after page refresh F5)
+    const cached = getCachedAnalysis();
+    if (cached && cached.username) {
+      autoAnalyzedRef.current = true;
+      setAnalysisData(cached);
+      setUsername(cached.username);
+      return;
+    }
+
+    // 6. Flow B: First-time auto-analysis for connected GitHub OAuth user
     if (
       !autoAnalyzedRef.current &&
-      !analysisData &&
       !isLoading &&
       user?.connected_github?.github_login
     ) {
@@ -203,10 +288,9 @@ export const DashboardPage: React.FC = () => {
       return;
     }
 
-    // 5. If user has a default profile configured and nothing loaded
+    // 7. If user has a default profile configured and no cache exists
     if (
       !autoAnalyzedRef.current &&
-      !analysisData &&
       !isLoading &&
       user?.default_profile_username
     ) {
@@ -215,18 +299,19 @@ export const DashboardPage: React.FC = () => {
       return;
     }
 
-    // 6. If unauthenticated user lands on /dashboard without params, redirect to login
-    if (!user && !analysisData && !autoAnalyzedRef.current) {
+    // 8. If unauthenticated user lands on /dashboard without params, redirect to login
+    if (!user && !autoAnalyzedRef.current) {
       navigate('/login?redirect=' + encodeURIComponent('/dashboard'));
       return;
     }
-  }, [searchParams, user, isAuthLoading]);
+  }, [searchParams, user, isAuthLoading, analysisData, getCachedAnalysis, saveAnalysis, navigate]);
 
   const handleRetryAi = async () => {
     if (!analysisData || isLoadingAi) return;
     setIsLoadingAi(true);
     try {
       const envelope = await retryAIAnalysis(analysisData.username, analysisData.is_demo_data);
+      updateAiAnalysis(envelope);
       setAnalysisData((prev) => (prev ? { ...prev, ai_analysis: envelope } : null));
     } catch (err: any) {
       console.error('Failed to retry AI analysis:', err);

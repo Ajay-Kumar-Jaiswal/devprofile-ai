@@ -2,12 +2,14 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { exchangeGitHubOAuthCode, fetchProfileAnalysis, ApiError } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useAnalysis } from '../context/AnalysisContext';
 import { Terminal, Loader2, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
 
 export const OAuthCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
+  const { saveAnalysis } = useAnalysis();
 
   const [statusStep, setStatusStep] = useState<'exchanging' | 'analyzing' | 'complete' | 'error'>('exchanging');
   const [statusMessage, setStatusMessage] = useState('Verifying GitHub authorization...');
@@ -60,7 +62,8 @@ export const OAuthCallbackPage: React.FC = () => {
         // Step 2: Automatically trigger analysis for the connected GitHub account
         if (ghLogin) {
           try {
-            await fetchProfileAnalysis(ghLogin);
+            const initialResult = await fetchProfileAnalysis(ghLogin);
+            saveAnalysis(initialResult);
           } catch (analysisErr) {
             console.warn('Initial automated analysis failed, session preserved:', analysisErr);
             // Session is preserved; user can retry on dashboard
