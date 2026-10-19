@@ -358,6 +358,26 @@ export async function forgotPassword(email: string): Promise<{ success: boolean;
   return await res.json();
 }
 
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ message: string }> {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/change-password`, {
+    method: 'POST',
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
 // ============================================================================
 // History & Recommendations API Functions
 // ============================================================================

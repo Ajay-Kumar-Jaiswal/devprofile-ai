@@ -219,6 +219,7 @@ export interface UserOut {
   full_name: string | null;
   default_profile_username: string | null;
   connected_github: ConnectedGitHubOut | null;
+  has_password?: boolean;
   created_at: string;
 }
 

@@ -33,6 +33,7 @@ class UserOut(BaseModel):
     full_name: Optional[str] = None
     default_profile_username: Optional[str] = None
     connected_github: Optional[ConnectedGitHubOut] = None
+    has_password: bool = False
     created_at: datetime
 
 

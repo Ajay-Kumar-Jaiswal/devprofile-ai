@@ -474,3 +474,183 @@ async def test_manual_public_profile_analysis_after_disconnect():
         )
         assert me_resp.json()["connected_github"] is None
 
+
+@pytest.mark.asyncio
+async def test_change_password_success_and_subsequent_login():
+    """Verify password change with valid current password updates credentials."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Register user with initial password
+        reg_resp = await client.post(
+            "/api/auth/register",
+            json={"email": "pwd_user@example.com", "password": "InitialPassword123!"},
+        )
+        assert reg_resp.status_code == 201
+        token = reg_resp.json()["token"]
+
+        # Change password
+        change_resp = await client.post(
+            "/api/auth/change-password",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "current_password": "InitialPassword123!",
+                "new_password": "UpdatedPassword456!",
+            },
+        )
+        assert change_resp.status_code == 200
+        assert change_resp.json()["message"] == "Password changed successfully."
+
+        # Verify old password no longer works
+        old_login = await client.post(
+            "/api/auth/login",
+            json={"email": "pwd_user@example.com", "password": "InitialPassword123!"},
+        )
+        assert old_login.status_code == 401
+
+        # Verify new password succeeds
+        new_login = await client.post(
+            "/api/auth/login",
+            json={"email": "pwd_user@example.com", "password": "UpdatedPassword456!"},
+        )
+        assert new_login.status_code == 200
+        assert "token" in new_login.json()
+
+
+@pytest.mark.asyncio
+async def test_change_password_incorrect_current_password():
+    """Verify change-password rejects incorrect current password."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        reg_resp = await client.post(
+            "/api/auth/register",
+            json={"email": "wrong_pwd@example.com", "password": "CorrectPassword123!"},
+        )
+        token = reg_resp.json()["token"]
+
+        change_resp = await client.post(
+            "/api/auth/change-password",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "current_password": "WrongPassword999!",
+                "new_password": "AnotherPassword456!",
+            },
+        )
+        assert change_resp.status_code == 400
+        assert "Current password is incorrect" in change_resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_change_password_same_new_password_rejected():
+    """Verify change-password rejects new password matching current password."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        reg_resp = await client.post(
+            "/api/auth/register",
+            json={"email": "same_pwd@example.com", "password": "MySamePassword123!"},
+        )
+        token = reg_resp.json()["token"]
+
+        change_resp = await client.post(
+            "/api/auth/change-password",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "current_password": "MySamePassword123!",
+                "new_password": "MySamePassword123!",
+            },
+        )
+        assert change_resp.status_code == 400
+        assert "New password must be different from your current password" in change_resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_change_password_short_new_password_rejected():
+    """Verify change-password rejects passwords under 8 characters."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        reg_resp = await client.post(
+            "/api/auth/register",
+            json={"email": "short_pwd@example.com", "password": "MyValidPassword123!"},
+        )
+        token = reg_resp.json()["token"]
+
+        change_resp = await client.post(
+            "/api/auth/change-password",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "current_password": "MyValidPassword123!",
+                "new_password": "short",
+            },
+        )
+        assert change_resp.status_code in (400, 422)
+
+
+@pytest.mark.asyncio
+async def test_change_password_unauthenticated_rejected():
+    """Verify unauthenticated calls to change-password return HTTP 401."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/api/auth/change-password",
+            json={
+                "current_password": "AnyPassword123!",
+                "new_password": "NewPassword456!",
+            },
+        )
+        assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_change_password_oauth_only_account_rejected():
+    """Verify change-password rejects accounts that only authenticated via GitHub OAuth without a local password."""
+    from tests.conftest import TestSession as SessionLocal
+    from app.services.auth_service import create_access_token
+
+    db = SessionLocal()
+    oauth_user = User(
+        email="oauth_user@example.com",
+        hashed_password=None,  # No local password!
+        full_name="OAuth Developer",
+        is_active=True,
+    )
+    db.add(oauth_user)
+    db.commit()
+    token = create_access_token({"sub": str(oauth_user.id), "email": oauth_user.email})
+    db.close()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # UserOut should report has_password=False
+        me_resp = await client.get(
+            "/api/auth/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert me_resp.status_code == 200
+        assert me_resp.json()["has_password"] is False
+
+        # Attempting change-password must be rejected
+        change_resp = await client.post(
+            "/api/auth/change-password",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "current_password": "SomePassword123!",
+                "new_password": "NewPassword456!",
+            },
+        )
+        assert change_resp.status_code == 400
+        assert "GitHub OAuth" in change_resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_user_out_reports_has_password_true_for_password_users():
+    """Verify UserOut schema reports has_password=True for email/password users."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        reg_resp = await client.post(
+            "/api/auth/register",
+            json={"email": "has_pwd_user@example.com", "password": "ValidPassword123!"},
+        )
+        assert reg_resp.status_code == 201
+        data = reg_resp.json()
+        assert data["user"]["has_password"] is True
+
+

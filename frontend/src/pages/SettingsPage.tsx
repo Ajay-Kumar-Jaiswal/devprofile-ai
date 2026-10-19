@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   updateDefaultProfile,
   disconnectGitHub,
+  changePassword,
   ApiError,
 } from '../services/api';
 import { GithubIcon } from '../components/GithubIcon';
@@ -16,6 +17,9 @@ import {
   Loader2,
   ShieldCheck,
   ExternalLink,
+  Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
@@ -33,9 +37,83 @@ export const SettingsPage: React.FC = () => {
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [disconnectSuccess, setDisconnectSuccess] = useState<string | null>(null);
 
+  // Security / Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
   React.useEffect(() => {
     setDefaultHandle(user?.default_profile_username || '');
   }, [user?.default_profile_username]);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isChangingPassword) return;
+
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    const cleanCurrent = currentPassword.trim();
+    const cleanNew = newPassword;
+    const cleanConfirm = confirmPassword;
+
+    if (!cleanCurrent) {
+      setPasswordError('Please enter your current password.');
+      return;
+    }
+
+    if (!cleanNew) {
+      setPasswordError('Please enter your new password.');
+      return;
+    }
+
+    if (cleanNew.length < 8) {
+      setPasswordError('New password must be at least 8 characters in length.');
+      return;
+    }
+
+    if (cleanNew === cleanCurrent) {
+      setPasswordError('New password must be different from your current password.');
+      return;
+    }
+
+    if (!cleanConfirm) {
+      setPasswordError('Please confirm your new password.');
+      return;
+    }
+
+    if (cleanNew !== cleanConfirm) {
+      setPasswordError('New password and confirmation do not match.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      const res = await changePassword(cleanCurrent, cleanNew);
+      setPasswordSuccess(res.message || 'Password changed successfully.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        setPasswordError(err.detail);
+      } else {
+        setPasswordError(err?.message || 'Failed to update password. Please check your credentials.');
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -249,7 +327,161 @@ export const SettingsPage: React.FC = () => {
           </form>
         </div>
 
-        {/* 4. Session & Sign Out */}
+        {/* 4. Security */}
+        <div className="glass-panel p-6 sm:p-7 rounded-2xl border border-slate-800 shadow-card space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+              <Lock className="w-4 h-4 text-violet-400" />
+              <span>Security</span>
+            </h2>
+
+            {user?.has_password === false ? (
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-violet-500/10 text-violet-300 border border-violet-500/30 flex items-center gap-1.5">
+                <GithubIcon className="w-3.5 h-3.5 text-white" />
+                <span>GitHub OAuth Account</span>
+              </span>
+            ) : (
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                Email / Password
+              </span>
+            )}
+          </div>
+
+          {user?.has_password === false ? (
+            <div className="p-4 rounded-xl bg-navy-900 border border-slate-800 space-y-2">
+              <p className="text-xs text-slate-300 font-medium">
+                Password changes aren't available for this account.
+              </p>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                This account authenticates exclusively through GitHub OAuth and does not have a local password. Please continue using GitHub sign-in to access your account securely.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-xs text-slate-400">
+                Update your account password. Choose a strong password of at least 8 characters.
+              </p>
+
+              {passwordSuccess && (
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-2.5 animate-fadeIn">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{passwordSuccess}</span>
+                </div>
+              )}
+
+              {passwordError && (
+                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-center gap-2.5 animate-fadeIn">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>{passwordError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleChangePassword} className="space-y-4 max-w-lg">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                    Current password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3 pointer-events-none" />
+                    <input
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      disabled={isChangingPassword}
+                      className="w-full h-10 pl-10 pr-10 rounded-xl bg-navy-900 border border-slate-700/80 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all disabled:opacity-60"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-2.5 p-0.5 text-slate-400 hover:text-white transition-colors focus:outline-none"
+                      aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
+                    >
+                      {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-medium text-slate-300">
+                      New password
+                    </label>
+                    <span className="text-[10px] text-slate-400">Min. 8 characters</span>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3 pointer-events-none" />
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      minLength={8}
+                      disabled={isChangingPassword}
+                      className="w-full h-10 pl-10 pr-10 rounded-xl bg-navy-900 border border-slate-700/80 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all disabled:opacity-60"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-2.5 p-0.5 text-slate-400 hover:text-white transition-colors focus:outline-none"
+                      aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                    Confirm new password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3 pointer-events-none" />
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      minLength={8}
+                      disabled={isChangingPassword}
+                      className="w-full h-10 pl-10 pr-10 rounded-xl bg-navy-900 border border-slate-700/80 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all disabled:opacity-60"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-2.5 p-0.5 text-slate-400 hover:text-white transition-colors focus:outline-none"
+                      aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <button
+                    type="submit"
+                    disabled={isChangingPassword}
+                    className="h-10 px-5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs sm:text-sm font-semibold transition-all shadow-subtle hover:shadow-glow-violet flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                  >
+                    {isChangingPassword ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Updating password...</span>
+                      </>
+                    ) : (
+                      <span>Change Password</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+
+        {/* 5. Session & Sign Out */}
         <div className="glass-panel p-6 sm:p-7 rounded-2xl border border-slate-800 shadow-card flex items-center justify-between">
           <div>
             <h2 className="text-sm font-bold text-white">Active Session</h2>
