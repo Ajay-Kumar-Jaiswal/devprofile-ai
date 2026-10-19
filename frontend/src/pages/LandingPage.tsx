@@ -84,11 +84,11 @@ export const LandingPage: React.FC = () => {
         <div className="pt-6 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-3xl mx-auto text-xs text-slate-400">
           <div className="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-navy-900/40 border border-slate-800/80">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>0–100 Rule-Based Score</span>
+            <span>0–100 Objective Score</span>
           </div>
           <div className="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-navy-900/40 border border-slate-800/80">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>Groq LLaMA-3 Synthesis</span>
+            <span>AI Developer Insights</span>
           </div>
           <div className="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-navy-900/40 border border-slate-800/80">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -144,7 +144,7 @@ export const LandingPage: React.FC = () => {
             <div className="p-5 rounded-2xl bg-navy-900/90 border border-violet-500/30 space-y-3">
               <div className="flex items-center gap-2 text-violet-400 text-xs uppercase font-bold tracking-wider">
                 <Sparkles className="w-4 h-4" />
-                <span>AI Qualitative Synthesis</span>
+                <span>AI Portfolio Analysis</span>
               </div>
               <p className="text-xs text-slate-200 leading-relaxed italic">
                 "Strong backend architecture with demonstrated Go concurrency and async Python pipelines. Flagship projects prove real engineering depth over tutorial replicas."
@@ -302,7 +302,7 @@ export const LandingPage: React.FC = () => {
             </div>
             <h3 className="text-base font-bold text-white">Dual-Engine Audit</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Our deterministic engine verifies repository hygiene while Groq AI produces grounded qualitative project critiques and talking points.
+              Our deterministic engine verifies repository hygiene while AI analysis produces grounded qualitative project critiques and talking points.
             </p>
           </div>
 

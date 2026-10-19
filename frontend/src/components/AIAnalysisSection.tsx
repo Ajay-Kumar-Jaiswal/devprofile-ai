@@ -10,7 +10,6 @@ import {
   Target,
   FileQuestion,
   ShieldCheck,
-  Cpu,
   RefreshCw,
   Loader2,
   Info,
@@ -58,13 +57,10 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-                <span>AI Qualitative Synthesis</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-950 text-violet-300 border border-violet-800">
-                  Groq Cloud
-                </span>
+                <span>AI Portfolio Analysis</span>
               </h3>
               <p className="text-xs text-slate-400">
-                Grounded qualitative portfolio evaluation
+                Personalized insights based on your GitHub profile and repositories
               </p>
             </div>
           </div>
@@ -81,9 +77,9 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
           <div className="inline-flex p-3 rounded-full bg-violet-500/10 text-violet-400 mb-1">
             <Sparkles className="w-6 h-6 animate-pulse" />
           </div>
-          <h4 className="text-sm font-semibold text-white">Synthesizing Public GitHub Evidence</h4>
+          <h4 className="text-sm font-semibold text-white">Generating Portfolio Insights</h4>
           <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-            Querying Groq Cloud inference to audit repository structure, tech stack breadth, and placement readiness.
+            Reviewing your repositories, code patterns, and project structure to identify strengths and growth areas.
           </p>
         </div>
       </div>
@@ -95,6 +91,15 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
     const isUnconfigured = aiEnvelope?.status === 'disabled';
     const isRateLimited = aiEnvelope?.status === 'rate_limited';
 
+    const friendlyErrorMessage = (() => {
+      const msg = aiEnvelope?.error_message;
+      if (!msg) return 'AI portfolio analysis is temporarily unavailable.';
+      if (msg.includes('GROQ_API_KEY') || msg.includes('Groq') || msg.includes('configured')) {
+        return 'AI-powered recommendations are temporarily unavailable. Your verified portfolio score and metrics remain active.';
+      }
+      return msg;
+    })();
+
     return (
       <div className="glass-panel rounded-2xl p-6 sm:p-8 border border-slate-800 shadow-card space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
@@ -104,13 +109,10 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-                <span>AI Qualitative Synthesis</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-400 border border-slate-700">
-                  Groq LLM
-                </span>
+                <span>AI Portfolio Analysis</span>
               </h3>
               <p className="text-xs text-slate-400">
-                Evidence-based portfolio critique and interviewer talking points
+                Personalized developer insights and actionable recommendations
               </p>
             </div>
           </div>
@@ -127,11 +129,9 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
             >
               <AlertTriangle className="w-3.5 h-3.5" />
               <span>
-                {isUnconfigured
-                  ? 'AI Unconfigured'
-                  : isRateLimited
-                  ? 'Groq Rate Limited'
-                  : 'AI analysis unavailable'}
+                {isRateLimited
+                  ? 'Temporarily unavailable'
+                  : 'AI insights unavailable'}
               </span>
             </span>
           </div>
@@ -143,17 +143,11 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
             <Info className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="font-medium text-slate-200">
-                {aiEnvelope?.error_message ||
-                  'Groq AI qualitative synthesis is currently inactive.'}
+                {friendlyErrorMessage}
               </p>
               <p className="text-slate-400 text-[11px] leading-relaxed">
                 Deterministic portfolio score (0–100), repository metrics, charts, and quality checklists remain 100% active and verified above.
               </p>
-              {isUnconfigured && (
-                <p className="text-violet-300 text-[11px] pt-1">
-                  Tip: Add <code className="text-violet-200 font-mono">GROQ_API_KEY=gsk_...</code> to <code className="text-violet-200 font-mono">backend/.env</code> to activate live Groq AI analysis on real handles.
-                </p>
-              )}
             </div>
           </div>
         </div>
@@ -178,7 +172,7 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
   }
 
   // 3. Successful AI Analysis View
-  const { analysis, is_mock, model_used } = aiEnvelope;
+  const { analysis } = aiEnvelope;
 
   return (
     <div className="glass-panel rounded-2xl p-6 sm:p-8 border border-violet-500/30 shadow-glow-violet space-y-7">
@@ -191,29 +185,21 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
               <h3 className="text-lg font-bold text-white tracking-tight">
-                AI Portfolio Synthesis
+                AI Portfolio Analysis
               </h3>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-violet-500/10 text-violet-300 border border-violet-500/30">
-                Qualitative Assessment
-              </span>
             </div>
             <p className="text-xs text-slate-400">
-              Evaluated strictly from verified GitHub repository evidence &bull; Distinct from rule-based score
+              Evaluated strictly from verified GitHub repository evidence &bull; Personalized developer insights
             </p>
           </div>
         </div>
 
-        {/* Status & Model Badge */}
+        {/* Status & Retry */}
         <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
           {/* Explicit "Analysis complete" status badge */}
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
             <span>Analysis complete</span>
-          </div>
-
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-navy-900 border border-slate-700 text-xs font-mono text-slate-300">
-            <Cpu className="w-3.5 h-3.5 text-violet-400" />
-            <span>{is_mock ? 'Curated Demo Dataset' : `Groq: ${model_used || 'LLaMA-3'}`}</span>
           </div>
 
           <button
@@ -231,7 +217,7 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
       {/* 1. Executive Summary */}
       <div className="p-5 rounded-xl bg-navy-900/80 border border-violet-500/20 space-y-2">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-violet-400 block">
-          Executive Portfolio Assessment
+          Executive Summary
         </span>
         <p className="text-sm sm:text-base text-slate-200 leading-relaxed font-normal">
           "{analysis.summary}"
@@ -244,7 +230,7 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
         <div className="p-5 rounded-xl bg-emerald-950/15 border border-emerald-500/20 space-y-3">
           <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>Evidence-Based Strengths</span>
+            <span>Key Strengths</span>
           </div>
           <ul className="space-y-2">
             {analysis.strengths && analysis.strengths.length > 0 ? (
@@ -264,7 +250,7 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
         <div className="p-5 rounded-xl bg-amber-950/15 border border-amber-500/20 space-y-3">
           <div className="flex items-center gap-2 text-amber-400 text-sm font-bold">
             <AlertTriangle className="w-4 h-4 text-amber-400" />
-            <span>Specific Improvement Areas</span>
+            <span>Improvement Opportunities</span>
           </div>
           <ul className="space-y-2">
             {analysis.weaknesses && analysis.weaknesses.length > 0 ? (
@@ -286,7 +272,7 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm font-bold text-white">
             <FolderGit2 className="w-4 h-4 text-indigo-400" />
-            <span>Repository-Specific Technical Observations</span>
+            <span>Repository Insights</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -329,7 +315,7 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
         <div className="p-5 rounded-xl bg-navy-900/60 border border-slate-800 space-y-3">
           <div className="flex items-center gap-2 text-sm font-bold text-white">
             <Target className="w-4 h-4 text-blue-400" />
-            <span>Campus Placement Readiness</span>
+            <span>Career &amp; Placement Readiness</span>
           </div>
           <ul className="space-y-2 text-xs sm:text-sm text-slate-300">
             {analysis.placement_readiness && analysis.placement_readiness.length > 0 ? (
@@ -349,7 +335,7 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
         <div className="p-5 rounded-xl bg-navy-900/60 border border-slate-800 space-y-3">
           <div className="flex items-center gap-2 text-sm font-bold text-white">
             <ShieldCheck className="w-4 h-4 text-violet-400" />
-            <span>Profile Branding Recommendations</span>
+            <span>Profile Recommendations</span>
           </div>
           <ul className="space-y-2 text-xs sm:text-sm text-slate-300">
             {analysis.profile_improvements && analysis.profile_improvements.length > 0 ? (
@@ -371,10 +357,10 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
         <div className="p-5 rounded-xl bg-violet-950/20 border border-violet-500/30 space-y-3">
           <div className="flex items-center gap-2 text-sm font-bold text-white">
             <MessageSquare className="w-4 h-4 text-violet-400" />
-            <span>Key Interviewer Talking Points</span>
+            <span>Interview Discussion Points</span>
           </div>
           <p className="text-xs text-slate-400">
-            Proactively discuss these verified technical architectural decisions during placement interviews:
+            Key topics and architectural decisions to highlight in technical interviews:
           </p>
           <ul className="space-y-2 text-xs sm:text-sm text-slate-200">
             {analysis.interviewer_talking_points.map((tp, idx) => (
@@ -392,7 +378,7 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
         <div className="p-4 rounded-xl bg-navy-950/70 border border-slate-800/80 text-xs text-slate-400 space-y-1.5">
           <div className="flex items-center gap-1.5 text-slate-300 font-semibold">
             <FileQuestion className="w-4 h-4 text-slate-400" />
-            <span>Missing Evidence &amp; Audit Constraints:</span>
+            <span>Profile Analysis Notes:</span>
           </div>
           <ul className="list-disc list-inside space-y-1 text-slate-400 text-[11px]">
             {analysis.missing_evidence.map((me, idx) => (

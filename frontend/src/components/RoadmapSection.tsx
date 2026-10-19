@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { RoadmapPhase } from '../types/api';
-import { CalendarDays, Clock, CheckCircle2, Bot, Sparkles } from 'lucide-react';
+import { CalendarDays, Clock, CheckCircle2, Sparkles } from 'lucide-react';
 
 interface RoadmapSectionProps {
   roadmap7: RoadmapPhase;
@@ -14,14 +14,14 @@ export const RoadmapSection: React.FC<RoadmapSectionProps> = ({ roadmap7, roadma
 
   return (
     <div className="glass-panel rounded-2xl p-6 sm:p-7 border border-slate-800 shadow-card space-y-6">
-      {/* Top Banner labeling Phase 1 deterministic engine */}
+      {/* Actionable Roadmap Overview Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-violet-950/30 border border-violet-500/20 text-xs">
         <div className="flex items-center gap-2 text-violet-300">
-          <Bot className="w-4 h-4 text-violet-400 shrink-0" />
-          <span className="font-semibold">{currentRoadmap.ai_engine_badge}</span>
+          <Sparkles className="w-4 h-4 text-violet-400 shrink-0" />
+          <span className="font-semibold">Tailored Placement Roadmap</span>
         </div>
         <span className="text-[11px] text-slate-400 self-start sm:self-auto">
-          Phase 2 will integrate dynamic Groq Cloud AI reasoning
+          Curated milestones to maximize your technical interview impact
         </span>
       </div>
 

@@ -90,14 +90,12 @@ const AppLayout: React.FC = () => {
         <div className="flex flex-wrap items-center justify-center gap-4">
           <span className="font-semibold text-white">DevProfile AI</span>
           <span>&bull;</span>
-          <span>FastAPI + SQLite/PostgreSQL Database</span>
+          <span>Intelligent GitHub Profile &amp; Repository Analysis</span>
           <span>&bull;</span>
-          <span>Argon2 Security &amp; GitHub OAuth</span>
-          <span>&bull;</span>
-          <span>Groq Cloud LLaMA-3 + Deterministic Scoring</span>
+          <span>&copy; {new Date().getFullYear()} All rights reserved.</span>
         </div>
         <p className="text-[11px] text-slate-400">
-          Engineered for College Placement Drives &amp; Technical Interviews. Persistent History &amp; Progress Tracking Active.
+          Empowering developers with actionable portfolio audits, career insights, and interview readiness.
         </p>
       </footer>
     </div>

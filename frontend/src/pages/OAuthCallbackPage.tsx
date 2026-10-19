@@ -55,7 +55,7 @@ export const OAuthCallbackPage: React.FC = () => {
 
         setConnectedUsername(ghLogin || null);
         setStatusStep('analyzing');
-        setStatusMessage(`Connected as @${ghLogin}! Launching automated profile audit & Groq AI synthesis...`);
+        setStatusMessage(`Connected as @${ghLogin}! Launching automated profile audit & AI analysis...`);
 
         // Step 2: Automatically trigger analysis for the connected GitHub account
         if (ghLogin) {
@@ -121,7 +121,7 @@ export const OAuthCallbackPage: React.FC = () => {
             </div>
 
             <p className="text-[11px] text-slate-400">
-              Deterministic 5-pillar scoring and Groq AI inference active in background.
+              Repository auditing and AI portfolio analysis initializing in background.
             </p>
           </div>
         ) : (

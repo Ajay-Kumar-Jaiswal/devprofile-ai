@@ -189,7 +189,7 @@ export const DashboardPage: React.FC = () => {
       const errorMsg =
         err?.detail ||
         err?.message ||
-        'Could not complete AI analysis. Please verify your Groq API key configuration and network connectivity.';
+        'Could not complete AI analysis at this time. Please try again shortly.';
       setAnalysisData((prev) => {
         if (!prev) return null;
         return {

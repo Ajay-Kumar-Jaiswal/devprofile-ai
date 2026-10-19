@@ -56,10 +56,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-gradient-to-tr from-violet-600/15 via-blue-600/15 to-transparent blur-[120px] pointer-events-none -z-10" />
 
       <div className="max-w-3xl mx-auto space-y-6">
-        {/* Placement Tag */}
+        {/* Product Tag */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-navy-800/80 border border-slate-700/70 text-slate-300 text-xs font-medium backdrop-blur-sm shadow-subtle">
           <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-          <span>Deterministic Engineering Audits for Campus Placements</span>
+          <span>Intelligent GitHub Profile &amp; Portfolio Audits</span>
         </div>
 
         {/* Hero Heading */}
@@ -72,7 +72,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
         {/* Subtitle */}
         <p className="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed">
-          Comprehensive repository quality scoring, tech stack breakdown, and targeted 7-day &amp; 30-day action plans built to help students stand out during technical recruitment.
+          Comprehensive repository quality scoring, tech stack breakdown, and targeted action plans built to help developers stand out during technical recruitment.
         </p>
 
         {/* Search Bar Form */}

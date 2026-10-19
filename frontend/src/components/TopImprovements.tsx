@@ -82,12 +82,12 @@ export const TopImprovements: React.FC<TopImprovementsProps> = ({
               {items[0]?.isAiSource ? (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-500/10 text-violet-300 border border-violet-500/30">
                   <Sparkles className="w-3 h-3 text-violet-400" />
-                  <span>Groq AI Ranked</span>
+                  <span>AI Recommended</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-300 border border-blue-500/30">
                   <Sliders className="w-3 h-3 text-blue-400" />
-                  <span>Rule Engine Ranked</span>
+                  <span>High Priority</span>
                 </span>
               )}
             </h3>
