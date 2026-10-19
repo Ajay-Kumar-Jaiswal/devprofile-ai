@@ -2,6 +2,7 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.db_models import User
 from app.services.auth_service import decode_access_token
@@ -62,13 +63,22 @@ def get_current_user(
             detail="User account not found or has been deactivated.",
         )
 
+    # Enforce personal instance allowlist if configured
+    if settings.allowed_github_accounts_list:
+        user_gh = user.connected_github.github_login if user.connected_github else user.default_profile_username
+        if not settings.is_github_account_allowed(user_gh):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access to this personal instance is restricted to authorized GitHub accounts.",
+            )
+
     return user
 
 
 def get_optional_current_user(
     request: Request,
     db: Session = Depends(get_db),
-) -> Optional[User]:
+):
     """
     Optional authentication dependency for endpoints accessible to both
     authenticated users and guests/demos.
@@ -90,5 +100,14 @@ def get_optional_current_user(
     user = db.query(User).filter(User.id == user_id_int).first()
     if not user or not user.is_active:
         return None
+
+    # Enforce personal instance allowlist if configured
+    if settings.allowed_github_accounts_list:
+        user_gh = user.connected_github.github_login if user.connected_github else user.default_profile_username
+        if not settings.is_github_account_allowed(user_gh):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access to this personal instance is restricted to authorized GitHub accounts.",
+            )
 
     return user

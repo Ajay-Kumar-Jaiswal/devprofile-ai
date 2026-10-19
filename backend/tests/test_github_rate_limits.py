@@ -174,7 +174,7 @@ async def test_invalid_token_401_response():
 
 
 @pytest.mark.asyncio
-async def test_in_memory_cache_prevents_duplicate_calls():
+async def test_in_memory_cache_prevents_duplicate_calls(auth_headers):
     """Verify caching prevents redundant API calls within TTL window."""
     username = "cachingtester"
     raw_profile = {"login": username, "public_repos": 1, "followers": 2, "created_at": "2024-01-01T00:00:00Z"}
@@ -206,7 +206,7 @@ async def test_in_memory_cache_prevents_duplicate_calls():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Mock github_service.fetch_profile so we can verify it is NOT called
         with patch.object(github_service, "fetch_profile", new_callable=AsyncMock) as mock_fetch:
-            resp = await client.get(f"/api/analyze/{username}?skip_ai=true")
+            resp = await client.get(f"/api/analyze/{username}?skip_ai=true", headers=auth_headers)
             assert resp.status_code == 200
             assert mock_fetch.call_count == 0  # Served from cache!
             data = resp.json()

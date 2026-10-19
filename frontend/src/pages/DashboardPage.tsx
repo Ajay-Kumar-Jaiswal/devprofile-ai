@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { HeroSection } from '../components/HeroSection';
 import { ProfileHeader } from '../components/ProfileHeader';
@@ -43,8 +43,9 @@ import {
 type PrimaryTab = 'overview' | 'ai' | 'audits' | 'recommendations' | 'history';
 
 export const DashboardPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const [username, setUsername] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -62,7 +63,21 @@ export const DashboardPage: React.FC = () => {
   // Flow B Guard: Prevent duplicate automatic triggers on re-render / tab switch
   const autoAnalyzedRef = useRef<boolean>(false);
 
+  const handleAnalyzeAnother = () => {
+    if (!user) {
+      navigate('/login?redirect=' + encodeURIComponent('/dashboard'));
+      return;
+    }
+    setIsSearchOpen((prev) => !prev);
+  };
+
   const runAnalysis = async (userToAnalyze: string, isDemo: boolean = false) => {
+    // If attempting real profile analysis while logged out, redirect to login
+    if (!isDemo && !user) {
+      navigate('/login?redirect=' + encodeURIComponent(`/dashboard?analyze=${encodeURIComponent(userToAnalyze)}`));
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setUsername(userToAnalyze);
@@ -73,6 +88,10 @@ export const DashboardPage: React.FC = () => {
       setAnalysisData(result);
     } catch (err: any) {
       if (err instanceof ApiError) {
+        if (err.status === 401 && !isDemo) {
+          navigate('/login?redirect=' + encodeURIComponent(`/dashboard?analyze=${encodeURIComponent(userToAnalyze)}`));
+          return;
+        }
         setError({
           message: err.detail,
           status: err.status,
@@ -96,6 +115,10 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleLoadHistoricalRun = async (runId: number, login: string) => {
+    if (!user) {
+      navigate('/login?redirect=' + encodeURIComponent(`/dashboard?run_id=${encodeURIComponent(runId)}`));
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -105,6 +128,10 @@ export const DashboardPage: React.FC = () => {
       setActiveTab('overview');
     } catch (err: any) {
       if (err instanceof ApiError) {
+        if (err.status === 401) {
+          navigate('/login?redirect=' + encodeURIComponent(`/dashboard?run_id=${encodeURIComponent(runId)}`));
+          return;
+        }
         setError({ message: err.detail, status: err.status });
       } else {
         setError({ message: 'Could not load historical snapshot.' });
@@ -116,6 +143,8 @@ export const DashboardPage: React.FC = () => {
 
   // Inspect search params and execute Flow A / Flow B on initial mount
   useEffect(() => {
+    if (isAuthLoading) return;
+
     const runIdParam = searchParams.get('run_id');
     const analyzeParam = searchParams.get('analyze') || searchParams.get('username');
     const demoParam = searchParams.get('demo') === 'true';
@@ -124,6 +153,10 @@ export const DashboardPage: React.FC = () => {
     if (runIdParam) {
       const id = parseInt(runIdParam, 10);
       if (!isNaN(id)) {
+        if (!user) {
+          navigate('/login?redirect=' + encodeURIComponent(`/dashboard?run_id=${encodeURIComponent(runIdParam)}`));
+          return;
+        }
         autoAnalyzedRef.current = true;
         setIsLoading(true);
         getHistoryRunDetail(id)
@@ -141,8 +174,13 @@ export const DashboardPage: React.FC = () => {
 
     // 2. If explicit analyze or username param provided
     if (analyzeParam) {
+      const isDemoHandle = analyzeParam.toLowerCase() === 'alex-dev-demo' || analyzeParam.toLowerCase() === 'demo';
+      if (!user && !isDemoHandle) {
+        navigate('/login?redirect=' + encodeURIComponent(`/dashboard?analyze=${encodeURIComponent(analyzeParam)}`));
+        return;
+      }
       autoAnalyzedRef.current = true;
-      runAnalysis(analyzeParam, false);
+      runAnalysis(analyzeParam, isDemoHandle);
       return;
     }
 
@@ -176,7 +214,13 @@ export const DashboardPage: React.FC = () => {
       runAnalysis(user.default_profile_username, false);
       return;
     }
-  }, [searchParams, user]);
+
+    // 6. If unauthenticated user lands on /dashboard without params, redirect to login
+    if (!user && !analysisData && !autoAnalyzedRef.current) {
+      navigate('/login?redirect=' + encodeURIComponent('/dashboard'));
+      return;
+    }
+  }, [searchParams, user, isAuthLoading]);
 
   const handleRetryAi = async () => {
     if (!analysisData || isLoadingAi) return;
@@ -236,7 +280,13 @@ export const DashboardPage: React.FC = () => {
             </div>
           )}
           <HeroSection
-            onAnalyze={(handle) => runAnalysis(handle, false)}
+            onAnalyze={(handle) => {
+              if (!user) {
+                navigate('/login?redirect=' + encodeURIComponent(`/dashboard?analyze=${encodeURIComponent(handle)}`));
+                return;
+              }
+              runAnalysis(handle, false);
+            }}
             onLoadDemo={handleLoadDemo}
             isLoading={isLoading}
             currentUsername={username}
@@ -365,7 +415,7 @@ export const DashboardPage: React.FC = () => {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={() => setIsSearchOpen((prev) => !prev)}
+                onClick={handleAnalyzeAnother}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                   isSearchOpen
                     ? 'bg-violet-600/20 text-violet-300 border-violet-500/50'

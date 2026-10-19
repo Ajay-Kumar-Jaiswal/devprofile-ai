@@ -88,6 +88,14 @@ async def register_user(
     if body.default_profile_username:
         normalized_default = normalize_github_input(body.default_profile_username)
 
+    # Enforce personal instance allowlist if configured
+    if settings.allowed_github_accounts_list:
+        if not normalized_default or not settings.is_github_account_allowed(normalized_default):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Registration on this personal instance is restricted to authorized GitHub accounts.",
+            )
+
     new_user = User(
         email=clean_email,
         hashed_password=hash_password(body.password),
@@ -143,6 +151,15 @@ async def login_user(
             detail="This account has been deactivated.",
         )
 
+    # Enforce personal instance allowlist if configured
+    if settings.allowed_github_accounts_list:
+        user_gh = user.connected_github.github_login if user.connected_github else user.default_profile_username
+        if not settings.is_github_account_allowed(user_gh):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access to this personal instance is restricted to authorized GitHub accounts.",
+            )
+
     # Successful login: reset failed attempts
     reset_failed_login(rate_limit_key)
 
@@ -190,6 +207,11 @@ async def update_default_profile(
     db: Session = Depends(get_db),
 ):
     normalized = normalize_github_input(body.profile_input)
+    if settings.allowed_github_accounts_list and not settings.is_github_account_allowed(normalized):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"GitHub account '@{normalized}' is not authorized on this personal instance.",
+        )
     current_user.default_profile_username = normalized
     db.commit()
     db.refresh(current_user)
@@ -380,6 +402,16 @@ async def _process_github_oauth_code(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incomplete user profile returned by GitHub OAuth.",
+        )
+
+    # Enforce personal instance allowlist if configured
+    if not settings.is_github_account_allowed(gh_login):
+        logger.warning(
+            f"Rejecting GitHub OAuth authorization: '@{gh_login}' is not in ALLOWED_GITHUB_ACCOUNTS."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"GitHub account '@{gh_login}' is not authorized to access this personal instance.",
         )
 
     # 4. Check if this numeric GitHub user ID is already linked to an account

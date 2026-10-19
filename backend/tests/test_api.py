@@ -38,22 +38,22 @@ async def test_demo_profile_analysis():
 
 
 @pytest.mark.asyncio
-async def test_invalid_username_format():
+async def test_invalid_username_format(auth_headers):
     """Verify invalid GitHub handles fail validation with 400 Bad Request."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Cannot begin with hyphen
-        resp = await client.get("/api/analyze/-invalid")
+        resp = await client.get("/api/analyze/-invalid", headers=auth_headers)
         assert resp.status_code == 400
         assert "not a valid GitHub username" in resp.json()["detail"]
 
         # Cannot contain special symbols
-        resp2 = await client.get("/api/analyze/invalid@user!")
+        resp2 = await client.get("/api/analyze/invalid@user!", headers=auth_headers)
         assert resp2.status_code == 400
 
 
 @pytest.mark.asyncio
-async def test_valid_profile_analysis_with_mocked_github():
+async def test_valid_profile_analysis_with_mocked_github(auth_headers):
     """Verify successful end-to-end analysis when GitHub API returns valid user & repos."""
     mock_profile_json = {
         "login": "testuser",
@@ -95,7 +95,7 @@ async def test_valid_profile_analysis_with_mocked_github():
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.get("/api/analyze/testuser")
+            resp = await client.get("/api/analyze/testuser", headers=auth_headers)
             assert resp.status_code == 200
             data = resp.json()
             assert data["username"] == "testuser"
@@ -105,46 +105,46 @@ async def test_valid_profile_analysis_with_mocked_github():
 
 
 @pytest.mark.asyncio
-async def test_nonexistent_github_user_404():
+async def test_nonexistent_github_user_404(auth_headers):
     """Verify 404 response when GitHub API returns user not found."""
     with patch.object(github_service, "fetch_profile", new_callable=AsyncMock) as mock_fetch_p:
         mock_fetch_p.side_effect = HTTPException(status_code=404, detail="GitHub user 'unknown' was not found.")
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.get("/api/analyze/unknown")
+            resp = await client.get("/api/analyze/unknown", headers=auth_headers)
             assert resp.status_code == 404
             assert "was not found" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
-async def test_github_rate_limit_429():
+async def test_github_rate_limit_429(auth_headers):
     """Verify 429 response when GitHub returns rate limit exceeded."""
     with patch.object(github_service, "fetch_profile", new_callable=AsyncMock) as mock_fetch_p:
         mock_fetch_p.side_effect = HTTPException(status_code=429, detail="GitHub API rate limit exceeded.")
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.get("/api/analyze/popularuser")
+            resp = await client.get("/api/analyze/popularuser", headers=auth_headers)
             assert resp.status_code == 429
             assert "rate limit exceeded" in resp.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
-async def test_github_network_timeout_504():
+async def test_github_network_timeout_504(auth_headers):
     """Verify 504 Gateway Timeout when GitHub request times out."""
     with patch.object(github_service, "fetch_profile", new_callable=AsyncMock) as mock_fetch_p:
         mock_fetch_p.side_effect = HTTPException(status_code=504, detail="GitHub API connection timed out.")
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.get("/api/analyze/slowuser")
+            resp = await client.get("/api/analyze/slowuser", headers=auth_headers)
             assert resp.status_code == 504
             assert "timed out" in resp.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
-async def test_user_with_empty_repositories():
+async def test_user_with_empty_repositories(auth_headers):
     """Verify analyzer handles profiles with zero public repositories gracefully."""
     mock_profile_json = {
         "login": "zerorepos",
@@ -167,7 +167,7 @@ async def test_user_with_empty_repositories():
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.get("/api/analyze/zerorepos")
+            resp = await client.get("/api/analyze/zerorepos", headers=auth_headers)
             assert resp.status_code == 200
             data = resp.json()
             assert data["stats"]["total_analyzed_repos"] == 0
@@ -221,7 +221,7 @@ async def test_post_analyze_ai_only_demo():
 
 
 @pytest.mark.asyncio
-async def test_ai_failure_preserves_github_metrics_and_score():
+async def test_ai_failure_preserves_github_metrics_and_score(auth_headers):
     """Verify that if Groq returns an error or is unconfigured, core GitHub analysis succeeds."""
     mock_profile_json = {
         "login": "codehero",
@@ -265,7 +265,7 @@ async def test_ai_failure_preserves_github_metrics_and_score():
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.get("/api/analyze/codehero")
+            resp = await client.get("/api/analyze/codehero", headers=auth_headers)
             assert resp.status_code == 200
             data = resp.json()
 

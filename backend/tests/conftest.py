@@ -44,3 +44,44 @@ def reset_github_service_state():
     yield
     github_service._rate_limit_reset_epoch = None
     github_service.clear_cache()
+
+
+@pytest.fixture(autouse=True)
+def reset_settings_allowlist():
+    """Ensures personal instance allowlist is cleared before and after each test."""
+    from app.config import settings
+    settings.ALLOWED_GITHUB_ACCOUNTS = None
+    yield
+    settings.ALLOWED_GITHUB_ACCOUNTS = None
+
+
+@pytest.fixture
+def test_user():
+    """Creates and returns an active test user in the database."""
+    from app.db_models import User
+    from app.services.auth_service import hash_password
+
+    db = TestSession()
+    try:
+        user = User(
+            email="tester@campus.edu",
+            hashed_password=hash_password("password123"),
+            full_name="Campus Tester",
+            default_profile_username="testuser",
+            is_active=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+    finally:
+        db.close()
+
+
+@pytest.fixture
+def auth_headers(test_user):
+    """Generates an Authorization Bearer header for the test_user."""
+    from app.services.auth_service import create_access_token
+
+    token = create_access_token({"sub": str(test_user.id), "email": test_user.email})
+    return {"Authorization": f"Bearer {token}"}

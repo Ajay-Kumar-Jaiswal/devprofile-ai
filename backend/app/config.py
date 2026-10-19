@@ -59,10 +59,39 @@ class Settings(BaseSettings):
     GITHUB_CALLBACK_URL: Optional[str] = None
     GITHUB_REDIRECT_URI: Optional[str] = "http://localhost:5173/auth/callback"
 
+    # Personal Instance Allowlist Configuration
+    # Set to comma-separated GitHub logins (e.g. "octocat,myuser") to restrict instance access
+    ALLOWED_GITHUB_ACCOUNTS: Optional[str] = None
+
     @property
     def github_callback_url(self) -> str:
         """Retrieves configured callback URL with fallback."""
         return self.GITHUB_CALLBACK_URL or self.GITHUB_REDIRECT_URI or "http://localhost:5173/auth/callback"
+
+    @property
+    def allowed_github_accounts_list(self) -> list[str]:
+        """
+        Retrieves list of authorized GitHub logins if running in personal-use mode.
+        Reads ALLOWED_GITHUB_ACCOUNTS (or ALLOWED_GITHUB_LOGINS) from environment or settings.
+        Returns empty list if unrestricted (multi-tenant SaaS mode).
+        """
+        raw = (
+            os.getenv("ALLOWED_GITHUB_ACCOUNTS")
+            or os.getenv("ALLOWED_GITHUB_LOGINS")
+            or self.ALLOWED_GITHUB_ACCOUNTS
+        )
+        if not raw or not raw.strip():
+            return []
+        return [acc.strip().lower() for acc in raw.split(",") if acc.strip()]
+
+    def is_github_account_allowed(self, login: Optional[str]) -> bool:
+        """Checks if a GitHub login is authorized under the allowlist (if configured)."""
+        allowed = self.allowed_github_accounts_list
+        if not allowed:
+            return True
+        if not login or not login.strip():
+            return False
+        return login.strip().lower() in allowed
 
     model_config = SettingsConfigDict(
         env_file=".env",

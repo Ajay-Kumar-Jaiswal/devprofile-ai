@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getGitHubOAuthUrl, ApiError } from '../services/api';
 import { GithubIcon } from '../components/GithubIcon';
@@ -18,6 +18,13 @@ import {
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const rawRedirect = searchParams.get('redirect');
+  const targetRedirect =
+    rawRedirect && rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')
+      ? rawRedirect
+      : '/dashboard';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,7 +49,7 @@ export const LoginPage: React.FC = () => {
 
     try {
       await login(cleanEmail, password);
-      navigate('/dashboard');
+      navigate(targetRedirect);
     } catch (err: any) {
       if (err instanceof ApiError) {
         setError(err.detail);
@@ -61,6 +68,9 @@ export const LoginPage: React.FC = () => {
     try {
       const data = await getGitHubOAuthUrl();
       if (data.is_configured && data.auth_url) {
+        if (targetRedirect && targetRedirect !== '/dashboard') {
+          sessionStorage.setItem('auth_redirect', targetRedirect);
+        }
         window.location.href = data.auth_url;
       } else {
         setOauthNotice(
@@ -114,7 +124,7 @@ export const LoginPage: React.FC = () => {
               Sign In
             </button>
             <Link
-              to="/signup"
+              to={targetRedirect && targetRedirect !== '/dashboard' ? `/signup?redirect=${encodeURIComponent(targetRedirect)}` : "/signup"}
               className="py-2 px-3 rounded-lg text-slate-400 hover:text-slate-200 transition-colors text-center"
             >
               Sign Up
@@ -240,7 +250,7 @@ export const LoginPage: React.FC = () => {
             <p>
               Don't have an account?{' '}
               <Link
-                to="/signup"
+                to={targetRedirect && targetRedirect !== '/dashboard' ? `/signup?redirect=${encodeURIComponent(targetRedirect)}` : "/signup"}
                 className="text-violet-400 hover:text-violet-300 font-semibold underline underline-offset-4 transition-colors"
               >
                 Create one now

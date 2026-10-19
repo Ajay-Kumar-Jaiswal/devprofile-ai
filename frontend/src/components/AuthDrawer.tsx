@@ -136,7 +136,15 @@ export const AuthDrawer: React.FC = () => {
         await login(email.trim(), password);
       }
       closeAuthDrawer();
-      navigate('/dashboard');
+      const storedRedirect = sessionStorage.getItem('auth_redirect');
+      if (storedRedirect) {
+        sessionStorage.removeItem('auth_redirect');
+      }
+      const safeDestination =
+        storedRedirect && storedRedirect.startsWith('/') && !storedRedirect.startsWith('//')
+          ? storedRedirect
+          : '/dashboard';
+      navigate(safeDestination);
     } catch (err: any) {
       if (err instanceof ApiError) {
         setError(err.detail);

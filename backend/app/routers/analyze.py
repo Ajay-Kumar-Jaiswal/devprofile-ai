@@ -45,7 +45,24 @@ async def analyze_profile(
     db: Session = Depends(get_db),
 ):
     raw_input = username.strip()
-    is_demo = demo or raw_input.lower() in ("demo", "alex-dev-demo", "sample-developer")
+    is_demo_handle = raw_input.lower() in ("demo", "alex-dev-demo", "sample-developer")
+    is_demo = is_demo_handle or (demo and is_demo_handle)
+
+    # Enforce authentication for any non-demo profile analysis
+    if not is_demo:
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required to analyze real GitHub profiles. Please sign in or register.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if settings.allowed_github_accounts_list:
+            user_gh = current_user.connected_github.github_login if current_user.connected_github else current_user.default_profile_username
+            if not settings.is_github_account_allowed(user_gh):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access to this personal instance is restricted to authorized GitHub accounts.",
+                )
 
     readme_excerpts: Dict[str, str] = {}
 
@@ -222,7 +239,24 @@ async def analyze_profile_ai_only(
     db: Session = Depends(get_db),
 ):
     raw_input = username.strip()
-    is_demo = demo or raw_input.lower() in ("demo", "alex-dev-demo", "sample-developer")
+    is_demo_handle = raw_input.lower() in ("demo", "alex-dev-demo", "sample-developer")
+    is_demo = is_demo_handle or (demo and is_demo_handle)
+
+    # Enforce authentication for any non-demo AI analysis
+    if not is_demo:
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required to run AI portfolio analysis. Please sign in or register.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if settings.allowed_github_accounts_list:
+            user_gh = current_user.connected_github.github_login if current_user.connected_github else current_user.default_profile_username
+            if not settings.is_github_account_allowed(user_gh):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access to this personal instance is restricted to authorized GitHub accounts.",
+                )
 
     readme_excerpts: Dict[str, str] = {}
 

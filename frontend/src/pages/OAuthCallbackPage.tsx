@@ -69,8 +69,17 @@ export const OAuthCallbackPage: React.FC = () => {
 
         setStatusStep('complete');
         setStatusMessage('Analysis complete! Redirecting to dashboard...');
+        const storedRedirect = sessionStorage.getItem('auth_redirect');
+        if (storedRedirect) {
+          sessionStorage.removeItem('auth_redirect');
+        }
+        const safeDestination =
+          storedRedirect && storedRedirect.startsWith('/') && !storedRedirect.startsWith('//')
+            ? storedRedirect
+            : `/dashboard?analyze=${encodeURIComponent(ghLogin || '')}`;
+
         setTimeout(() => {
-          navigate(`/dashboard?analyze=${encodeURIComponent(ghLogin || '')}`);
+          navigate(safeDestination);
         }, 1200);
       } catch (err: any) {
         setStatusStep('error');

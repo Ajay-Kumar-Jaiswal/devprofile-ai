@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getGitHubOAuthUrl, ApiError } from '../services/api';
 import { GithubIcon } from '../components/GithubIcon';
@@ -19,6 +19,13 @@ import {
 export const SignUpPage: React.FC = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const rawRedirect = searchParams.get('redirect');
+  const targetRedirect =
+    rawRedirect && rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')
+      ? rawRedirect
+      : '/dashboard';
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -54,8 +61,10 @@ export const SignUpPage: React.FC = () => {
 
     try {
       await register(cleanEmail, password, fullName.trim() || undefined, defaultProfile.trim() || undefined);
-      // If default profile was provided, navigate to dashboard, else onboarding
-      if (defaultProfile.trim()) {
+      // If a specific redirect was requested (e.g., from an analysis attempt), honor it
+      if (targetRedirect !== '/dashboard') {
+        navigate(targetRedirect);
+      } else if (defaultProfile.trim()) {
         navigate('/dashboard');
       } else {
         navigate('/onboarding');
@@ -78,6 +87,9 @@ export const SignUpPage: React.FC = () => {
     try {
       const data = await getGitHubOAuthUrl();
       if (data.is_configured && data.auth_url) {
+        if (targetRedirect && targetRedirect !== '/dashboard') {
+          sessionStorage.setItem('auth_redirect', targetRedirect);
+        }
         window.location.href = data.auth_url;
       } else {
         setOauthNotice(
@@ -125,7 +137,7 @@ export const SignUpPage: React.FC = () => {
           {/* 3. Segmented Switch / Tabs */}
           <div className="grid grid-cols-2 p-1 rounded-xl bg-navy-950/90 border border-slate-800/90 text-xs font-semibold">
             <Link
-              to="/login"
+              to={targetRedirect && targetRedirect !== '/dashboard' ? `/login?redirect=${encodeURIComponent(targetRedirect)}` : "/login"}
               className="py-2 px-3 rounded-lg text-slate-400 hover:text-slate-200 transition-colors text-center"
             >
               Sign In
@@ -291,7 +303,7 @@ export const SignUpPage: React.FC = () => {
             <p>
               Already have an account?{' '}
               <Link
-                to="/login"
+                to={targetRedirect && targetRedirect !== '/dashboard' ? `/login?redirect=${encodeURIComponent(targetRedirect)}` : "/login"}
                 className="text-violet-400 hover:text-violet-300 font-semibold underline underline-offset-4 transition-colors"
               >
                 Sign in
