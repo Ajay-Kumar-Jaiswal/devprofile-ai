@@ -1,3 +1,4 @@
+import asyncio
 import os
 import re
 import time
@@ -59,6 +60,21 @@ class GitHubService:
         else:
             os.environ["GITHUB_TOKEN"] = value
             settings.GITHUB_TOKEN = value
+
+    @property
+    def rate_limit_reset_epoch(self) -> Optional[int]:
+        """Returns the active rate-limit reset epoch timestamp if currently in lockout, else None."""
+        if self._rate_limit_reset_epoch is not None:
+            if time.time() < self._rate_limit_reset_epoch:
+                return self._rate_limit_reset_epoch
+            self._rate_limit_reset_epoch = None
+        return None
+
+    @property
+    def is_rate_limited(self) -> bool:
+        """Indicates whether GitHub API requests are currently paused due to rate-limit exhaustion."""
+        return self.rate_limit_reset_epoch is not None
+
 
     def _get_headers(self) -> Dict[str, str]:
         """Generates standard GitHub REST API request headers."""
@@ -134,9 +150,14 @@ class GitHubService:
                         "Add a GITHUB_TOKEN to backend/.env for up to 5,000 requests/hour, "
                         "or click 'Load Demo Profile' to continue immediately."
                     )
+                headers = {
+                    "Retry-After": str(wait_seconds),
+                    "X-RateLimit-Reset": str(self._rate_limit_reset_epoch),
+                }
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     detail=detail,
+                    headers=headers,
                 )
             else:
                 # Lockout duration has expired
@@ -185,9 +206,14 @@ class GitHubService:
                 "or click 'Load Demo Profile' to continue immediately."
             )
 
+        headers = {
+            "Retry-After": str(wait_seconds),
+            "X-RateLimit-Reset": str(reset_epoch),
+        }
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=detail,
+            headers=headers,
         )
 
     def validate_username(self, username: str) -> str:
@@ -209,13 +235,37 @@ class GitHubService:
             )
         return cleaned
 
+    async def _safe_get(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        headers: Dict[str, str],
+        params: Optional[Dict[str, Any]] = None,
+        timeout: Optional[float] = None,
+        retries: int = 1,
+    ) -> httpx.Response:
+        """Executes an HTTP GET with transient network error retry and backoff."""
+        timeout_val = timeout or self.timeout
+        for attempt in range(retries + 1):
+            try:
+                resp = await client.get(url, headers=headers, params=params, timeout=timeout_val)
+                if resp.status_code in (502, 503, 504) and attempt < retries:
+                    await asyncio.sleep(0.5)
+                    continue
+                return resp
+            except (httpx.ConnectTimeout, httpx.ConnectError, httpx.ReadTimeout):
+                if attempt < retries:
+                    await asyncio.sleep(0.5)
+                    continue
+                raise
+
     async def fetch_profile(self, client: httpx.AsyncClient, username: str) -> Dict[str, Any]:
         """Fetches public user profile information with rate limit protection."""
         self._check_rate_limit_lockout()
 
         url = f"{self.base_url}/users/{username}"
         try:
-            resp = await client.get(url, headers=self._get_headers(), timeout=self.timeout)
+            resp = await self._safe_get(client, url, headers=self._get_headers(), timeout=self.timeout)
         except httpx.TimeoutException:
             raise HTTPException(
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT,
@@ -258,13 +308,22 @@ class GitHubService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"GitHub user '{username}' was not found. Please verify the handle.",
             )
+        elif resp.status_code >= 500:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=(
+                    f"GitHub API is temporarily experiencing a service outage (HTTP {resp.status_code}). "
+                    "Please try again in a few moments or click 'Load Demo Profile' to continue."
+                ),
+            )
         elif resp.status_code != 200:
             raise HTTPException(
                 status_code=resp.status_code,
-                detail=f"GitHub API returned error {resp.status_code}: {resp.text}",
+                detail=f"GitHub API request returned error {resp.status_code}. Please verify the handle and try again.",
             )
 
         return resp.json()
+
 
     async def fetch_repositories(
         self,
@@ -293,8 +352,8 @@ class GitHubService:
                 "type": "public",
             }
             try:
-                resp = await client.get(
-                    url, params=params, headers=self._get_headers(), timeout=self.timeout
+                resp = await self._safe_get(
+                    client, url, params=params, headers=self._get_headers(), timeout=self.timeout
                 )
             except httpx.TimeoutException:
                 # If subsequent pages time out, proceed with what we have
@@ -333,6 +392,13 @@ class GitHubService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="GitHub API access forbidden during repository fetch.",
                 )
+            elif resp.status_code >= 500:
+                if all_repos:
+                    break
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"GitHub API is temporarily experiencing a service disruption (HTTP {resp.status_code}) during repository fetch.",
+                )
             elif resp.status_code != 200:
                 if all_repos:
                     break
@@ -340,6 +406,7 @@ class GitHubService:
                     status_code=resp.status_code,
                     detail=f"GitHub API returned error {resp.status_code} during repository fetch.",
                 )
+
 
             page_data = resp.json()
             if not isinstance(page_data, list) or len(page_data) == 0:

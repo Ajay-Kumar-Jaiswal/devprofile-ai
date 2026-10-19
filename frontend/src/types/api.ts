@@ -194,7 +194,12 @@ export interface HealthResponse {
   version: string;
   github_api_status: string;
   groq_api_status: string;
+  github_authenticated?: boolean;
+  github_rate_limited?: boolean;
+  github_rate_limit_reset?: number | null;
+  groq_configured?: boolean;
 }
+
 
 // ============================================================================
 // Phase 1-5 SaaS Interfaces

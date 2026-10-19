@@ -1,9 +1,14 @@
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict
 from fastapi import APIRouter, HTTPException, Query, Depends, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 import httpx
+
+logger = logging.getLogger("devprofile_ai.analyze")
+
 
 from app.config import settings
 from app.database import get_db
@@ -148,30 +153,37 @@ async def analyze_profile(
             .first()
         )
 
-        # Save immutable analysis run snapshot
-        run_record = AnalysisRun(
-            user_id=current_user.id,
-            analyzed_login=profile.login.lower(),
-            is_demo_data=is_demo,
-            overall_score=score.overall_score,
-            score_tier=score.tier,
-            public_repos=stats.total_public_repos,
-            total_stars=stats.total_stars,
-            primary_language=stats.primary_language,
-            status="success",
-            score_breakdown_json=json.dumps(score.model_dump()),
-            profile_data_json=json.dumps(profile.model_dump()),
-            stats_data_json=json.dumps(stats.model_dump()),
-            languages_json=json.dumps([l.model_dump() for l in languages]),
-            repositories_json=json.dumps([r.model_dump() for r in repos[:10]]),
-            checklist_json=json.dumps(checklist.model_dump()),
-            ai_analysis_json=json.dumps(ai_envelope.model_dump()) if ai_envelope else None,
-            previous_run_id=prev_run.id if prev_run else None,
-        )
-        db.add(run_record)
-        db.commit()
+        # Save immutable analysis run snapshot safely
+        try:
+            run_record = AnalysisRun(
+                user_id=current_user.id,
+                analyzed_login=profile.login.lower(),
+                is_demo_data=is_demo,
+                overall_score=score.overall_score,
+                score_tier=score.tier,
+                public_repos=stats.total_public_repos,
+                total_stars=stats.total_stars,
+                primary_language=stats.primary_language,
+                status="success",
+                score_breakdown_json=json.dumps(score.model_dump()),
+                profile_data_json=json.dumps(profile.model_dump()),
+                stats_data_json=json.dumps(stats.model_dump()),
+                languages_json=json.dumps([l.model_dump() for l in languages]),
+                repositories_json=json.dumps([r.model_dump() for r in repos[:10]]),
+                checklist_json=json.dumps(checklist.model_dump()),
+                ai_analysis_json=json.dumps(ai_envelope.model_dump()) if ai_envelope else None,
+                previous_run_id=prev_run.id if prev_run else None,
+            )
+            db.add(run_record)
+            db.commit()
+        except SQLAlchemyError as db_err:
+            db.rollback()
+            logger.warning(
+                f"Failed to persist analysis run for {profile.login} to history: {db_err}"
+            )
 
     now_iso = datetime.now(timezone.utc).isoformat()
+
 
     return AnalysisResponse(
         username=profile.login,
@@ -268,54 +280,61 @@ async def analyze_profile_ai_only(
 
     # If authenticated, update or create the AnalysisRun snapshot with the updated AI output
     if current_user and envelope.status == "success":
-        target_run = None
-        if run_id:
-            target_run = (
-                db.query(AnalysisRun)
-                .filter(
-                    AnalysisRun.id == run_id,
-                    AnalysisRun.user_id == current_user.id,
+        try:
+            target_run = None
+            if run_id:
+                target_run = (
+                    db.query(AnalysisRun)
+                    .filter(
+                        AnalysisRun.id == run_id,
+                        AnalysisRun.user_id == current_user.id,
+                    )
+                    .first()
                 )
-                .first()
-            )
 
-        if not target_run:
-            target_run = (
-                db.query(AnalysisRun)
-                .filter(
-                    AnalysisRun.user_id == current_user.id,
-                    AnalysisRun.analyzed_login == profile.login.lower(),
+            if not target_run:
+                target_run = (
+                    db.query(AnalysisRun)
+                    .filter(
+                        AnalysisRun.user_id == current_user.id,
+                        AnalysisRun.analyzed_login == profile.login.lower(),
+                    )
+                    .order_by(AnalysisRun.created_at.desc())
+                    .first()
                 )
-                .order_by(AnalysisRun.created_at.desc())
-                .first()
-            )
 
-        if target_run:
-            target_run.ai_analysis_json = json.dumps(envelope.model_dump())
-            db.commit()
-            db.refresh(target_run)
-        else:
-            score = calculate_portfolio_score(profile, repos, languages)
-            target_run = AnalysisRun(
-                user_id=current_user.id,
-                analyzed_login=profile.login.lower(),
-                is_demo_data=is_demo,
-                overall_score=score.overall_score,
-                score_tier=score.tier,
-                public_repos=stats.total_public_repos,
-                total_stars=stats.total_stars,
-                primary_language=stats.primary_language,
-                status="success",
-                score_breakdown_json=json.dumps(score.model_dump()),
-                profile_data_json=json.dumps(profile.model_dump()),
-                stats_data_json=json.dumps(stats.model_dump()),
-                languages_json=json.dumps([l.model_dump() for l in languages]),
-                repositories_json=json.dumps([r.model_dump() for r in repos[:10]]),
-                checklist_json=json.dumps(checklist.model_dump()),
-                ai_analysis_json=json.dumps(envelope.model_dump()),
+            if target_run:
+                target_run.ai_analysis_json = json.dumps(envelope.model_dump())
+                db.commit()
+                db.refresh(target_run)
+            else:
+                score = calculate_portfolio_score(profile, repos, languages)
+                target_run = AnalysisRun(
+                    user_id=current_user.id,
+                    analyzed_login=profile.login.lower(),
+                    is_demo_data=is_demo,
+                    overall_score=score.overall_score,
+                    score_tier=score.tier,
+                    public_repos=stats.total_public_repos,
+                    total_stars=stats.total_stars,
+                    primary_language=stats.primary_language,
+                    status="success",
+                    score_breakdown_json=json.dumps(score.model_dump()),
+                    profile_data_json=json.dumps(profile.model_dump()),
+                    stats_data_json=json.dumps(stats.model_dump()),
+                    languages_json=json.dumps([l.model_dump() for l in languages]),
+                    repositories_json=json.dumps([r.model_dump() for r in repos[:10]]),
+                    checklist_json=json.dumps(checklist.model_dump()),
+                    ai_analysis_json=json.dumps(envelope.model_dump()),
+                )
+                db.add(target_run)
+                db.commit()
+                db.refresh(target_run)
+        except SQLAlchemyError as db_err:
+            db.rollback()
+            logger.warning(
+                f"Failed to persist AI analysis result to history for {profile.login}: {db_err}"
             )
-            db.add(target_run)
-            db.commit()
-            db.refresh(target_run)
 
     return envelope
+

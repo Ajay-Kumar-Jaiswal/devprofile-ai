@@ -50,7 +50,12 @@ export const DashboardPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLoadingAi, setIsLoadingAi] = useState<boolean>(false);
   const [analysisData, setAnalysisData] = useState<AnalysisResponse | null>(null);
-  const [error, setError] = useState<{ message: string; status?: number } | null>(null);
+  const [error, setError] = useState<{
+    message: string;
+    status?: number;
+    retryAfterSeconds?: number;
+    rateLimitResetEpoch?: number;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState<PrimaryTab>('overview');
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
 
@@ -68,7 +73,12 @@ export const DashboardPage: React.FC = () => {
       setAnalysisData(result);
     } catch (err: any) {
       if (err instanceof ApiError) {
-        setError({ message: err.detail, status: err.status });
+        setError({
+          message: err.detail,
+          status: err.status,
+          retryAfterSeconds: err.retryAfterSeconds,
+          rateLimitResetEpoch: err.rateLimitResetEpoch,
+        });
       } else {
         setError({
           message: err.message || 'An unexpected error occurred while analyzing the profile.',
@@ -79,6 +89,7 @@ export const DashboardPage: React.FC = () => {
       setIsLoading(false);
     }
   };
+
 
   const handleLoadDemo = () => {
     runAnalysis('alex-dev-demo', true);
@@ -241,10 +252,13 @@ export const DashboardPage: React.FC = () => {
         <ErrorCard
           error={error.message}
           statusCode={error.status}
+          retryAfterSeconds={error.retryAfterSeconds}
+          rateLimitResetEpoch={error.rateLimitResetEpoch}
           onRetry={username ? () => runAnalysis(username, false) : undefined}
           onLoadDemo={handleLoadDemo}
         />
       )}
+
 
       {/* Empty State before any search */}
       {!isLoading && !error && !analysisData && (

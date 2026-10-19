@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { AIAnalysisEnvelope } from '../types/api';
+
 import {
   Sparkles,
   Bot,
@@ -29,8 +30,25 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
   onRetryAi,
   isLoadingAi,
 }) => {
+  const [cooldown, setCooldown] = useState<number>(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((c) => (c > 0 ? c - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const handleTriggerRetry = () => {
+    if (isLoadingAi || cooldown > 0) return;
+    setCooldown(5);
+    onRetryAi();
+  };
+
   // 1. Loading state during an active request
   if (isLoadingAi) {
+
     return (
       <div className="glass-panel rounded-2xl p-6 sm:p-8 border border-violet-500/40 shadow-glow-violet space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
@@ -140,17 +158,21 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
           </div>
         </div>
 
-        {/* Retry Button */}
+        {/* Retry Button with Cooldown */}
         <div className="pt-1 flex flex-wrap items-center gap-3">
           <button
-            onClick={onRetryAi}
-            disabled={isLoadingAi}
+            onClick={handleTriggerRetry}
+            disabled={isLoadingAi || cooldown > 0}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs sm:text-sm font-semibold transition-all shadow-glow-violet disabled:opacity-50 active:scale-95"
+            title={cooldown > 0 ? `Please wait ${cooldown}s before retrying` : 'Generate or retry AI portfolio evaluation'}
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Generate / Retry AI Analysis</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${cooldown > 0 ? 'animate-spin' : ''}`} />
+            <span>
+              {cooldown > 0 ? `Please wait (${cooldown}s)` : 'Generate / Retry AI Analysis'}
+            </span>
           </button>
         </div>
+
       </div>
     );
   }
@@ -195,13 +217,14 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
           </div>
 
           <button
-            onClick={onRetryAi}
-            disabled={isLoadingAi}
-            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors"
-            title="Refresh AI Analysis"
+            onClick={handleTriggerRetry}
+            disabled={isLoadingAi || cooldown > 0}
+            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors disabled:opacity-50"
+            title={cooldown > 0 ? `Please wait ${cooldown}s before refreshing` : 'Refresh AI Analysis'}
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className={`w-3.5 h-3.5 ${cooldown > 0 ? 'animate-spin' : ''}`} />
           </button>
+
         </div>
       </div>
 

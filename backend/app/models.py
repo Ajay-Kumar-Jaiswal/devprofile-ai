@@ -306,3 +306,8 @@ class HealthResponse(BaseModel):
     version: str
     github_api_status: str
     groq_api_status: str
+    github_authenticated: bool = False
+    github_rate_limited: bool = False
+    github_rate_limit_reset: Optional[int] = None
+    groq_configured: bool = False
+

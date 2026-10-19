@@ -32,10 +32,14 @@ logger = logging.getLogger("devprofile_ai.ai_service")
 
 
 def extract_json_from_llm_response(text: str) -> str:
-    """Robustly extracts JSON substring from LLM response text, stripping markdown code fences."""
+    """Robustly extracts JSON substring from LLM response text, stripping markdown code fences and reasoning tags."""
     if not text:
         return ""
     cleaned = text.strip()
+    # Strip <think>...</think> blocks if produced by reasoning models
+    if "<think>" in cleaned and "</think>" in cleaned:
+        cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL).strip()
+
     # Strip markdown code blocks (e.g. ```json ... ``` or ``` ...)
     if "```" in cleaned:
         start_fence = cleaned.find("```")
@@ -52,6 +56,7 @@ def extract_json_from_llm_response(text: str) -> str:
     if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
         cleaned = cleaned[first_brace:last_brace + 1]
     return cleaned
+
 
 
 class AIService:
@@ -425,6 +430,14 @@ class AIService:
                     error_message="Invalid or revoked Groq API key. Please check GROQ_API_KEY in backend/.env.",
                     analysis=None,
                 )
+            if status_code and status_code >= 500:
+                return AIAnalysisEnvelope(
+                    status="unavailable",
+                    model_used=self.model,
+                    is_mock=False,
+                    error_message=f"Groq AI service is temporarily experiencing an outage (HTTP {status_code}). Deterministic portfolio scoring and repository metrics remain fully accessible.",
+                    analysis=None,
+                )
             code_desc = f"HTTP {status_code}" if status_code else "API error"
             return AIAnalysisEnvelope(
                 status="error",
@@ -439,9 +452,10 @@ class AIService:
                 status="error",
                 model_used=self.model,
                 is_mock=False,
-                error_message=f"AI analysis encountered an error: {str(e)}. Core scoring and repository metrics remain fully accessible.",
+                error_message="AI analysis encountered an unexpected issue. Deterministic portfolio scoring and repository metrics remain fully accessible.",
                 analysis=None,
             )
+
 
     def _get_demo_ai_analysis(self) -> AIAnalysisEnvelope:
         """

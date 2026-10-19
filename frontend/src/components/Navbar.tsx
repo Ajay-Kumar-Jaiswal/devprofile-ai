@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Terminal, AlertCircle, Sparkles, RefreshCw, Settings, LogOut, History, ListChecks, ChevronDown } from 'lucide-react';
+import { Terminal, AlertCircle, Sparkles, RefreshCw, Settings, LogOut, History, ListChecks, ChevronDown, Server, Cpu } from 'lucide-react';
 import { GithubIcon } from './GithubIcon';
 import { checkBackendHealth } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -19,7 +19,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onLoadDemo, isLoading = false })
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [isBackendHealthy, setIsBackendHealthy] = useState<boolean | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
     let mounted = true;
@@ -40,11 +43,26 @@ export const Navbar: React.FC<NavbarProps> = ({ onLoadDemo, isLoading = false })
     };
   }, []);
 
+  const refreshHealth = () => {
+    setIsBackendHealthy(null);
+    checkBackendHealth()
+      .then((data) => {
+        setHealth(data);
+        setIsBackendHealthy(true);
+      })
+      .catch(() => {
+        setIsBackendHealthy(false);
+      });
+  };
+
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setUserMenuOpen(false);
+      }
+      if (statusRef.current && !statusRef.current.contains(event.target as Node)) {
+        setStatusPopoverOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -52,6 +70,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onLoadDemo, isLoading = false })
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
 
   const handleSignOut = async () => {
     setUserMenuOpen(false);
@@ -111,34 +130,141 @@ export const Navbar: React.FC<NavbarProps> = ({ onLoadDemo, isLoading = false })
 
         {/* Right controls: Health pill & Account state */}
         <div className="flex items-center gap-3">
-          {/* Health indicator */}
-          <div
-            className={`hidden lg:flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-              isBackendHealthy === true
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                : isBackendHealthy === false
-                ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                : 'bg-slate-800/50 text-slate-400 border-slate-700/50'
-            }`}
-            title={health ? `API v${health.version} | GitHub: ${health.github_api_status} | Groq: ${health.groq_api_status}` : 'Connecting...'}
-          >
-            {isBackendHealthy === true ? (
-              <>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>API Online</span>
-              </>
-            ) : isBackendHealthy === false ? (
-              <>
-                <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
-                <span>API Offline</span>
-              </>
-            ) : (
-              <>
-                <RefreshCw className="w-3 h-3 animate-spin text-slate-400" />
-                <span>Checking API</span>
-              </>
+          {/* Health indicator & Decoupled Service Status popover */}
+          <div className="relative" ref={statusRef}>
+            <button
+              type="button"
+              onClick={() => setStatusPopoverOpen((prev) => !prev)}
+              className={`hidden lg:flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                isBackendHealthy === true
+                  ? health?.github_rate_limited
+                    ? 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
+                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/15'
+                  : isBackendHealthy === false
+                  ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/15'
+                  : 'bg-slate-800/50 text-slate-400 border-slate-700/50'
+              }`}
+              title="Click to view detailed health for Backend, GitHub API, and Groq AI"
+              aria-expanded={statusPopoverOpen}
+            >
+              {isBackendHealthy === true ? (
+                <>
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      health?.github_rate_limited ? 'bg-amber-400' : 'bg-emerald-400'
+                    } animate-pulse`}
+                  />
+                  <span>
+                    {health?.github_rate_limited ? 'GitHub Rate-Limited' : 'Service Status'}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </>
+              ) : isBackendHealthy === false ? (
+                <>
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Backend Offline</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-3 h-3 animate-spin text-slate-400" />
+                  <span>Auditing APIs...</span>
+                </>
+              )}
+            </button>
+
+            {/* Dropdown breakdown separating backend from external GitHub and Groq */}
+            {statusPopoverOpen && (
+              <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-navy-900 border border-slate-800 shadow-2xl p-4 space-y-3 z-50 text-xs animate-fadeIn">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span className="font-semibold text-white">System Service Status</span>
+                  <button
+                    type="button"
+                    onClick={refreshHealth}
+                    className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors"
+                    title="Refresh Service Status"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </button>
+                </div>
+
+                {/* Backend Status */}
+                <div className="flex items-start justify-between gap-2 p-2 rounded-lg bg-navy-950/60 border border-slate-800/60">
+                  <div className="flex items-center gap-2">
+                    <Server className="w-3.5 h-3.5 text-violet-400" />
+                    <div>
+                      <p className="font-medium text-slate-200">FastAPI Backend</p>
+                      <p className="text-[10px] text-slate-400">Core evaluation engine (v2.0.0)</p>
+                    </div>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                      isBackendHealthy
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                    }`}
+                  >
+                    {isBackendHealthy ? 'Online' : 'Offline'}
+                  </span>
+                </div>
+
+                {/* GitHub API Status */}
+                <div className="flex items-start justify-between gap-2 p-2 rounded-lg bg-navy-950/60 border border-slate-800/60">
+                  <div className="flex items-center gap-2">
+                    <GithubIcon className="w-3.5 h-3.5 text-slate-300" />
+                    <div>
+                      <p className="font-medium text-slate-200">GitHub REST API</p>
+                      <p className="text-[10px] text-slate-400">
+                        {health?.github_api_status || 'External data provider'}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                      health?.github_rate_limited
+                        ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
+                        : health?.github_authenticated
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-slate-800 text-slate-300 border border-slate-700'
+                    }`}
+                  >
+                    {health?.github_rate_limited
+                      ? 'Rate-Limited'
+                      : health?.github_authenticated
+                      ? 'Authenticated'
+                      : 'Public (60/hr)'}
+                  </span>
+                </div>
+
+                {/* Groq AI Status */}
+                <div className="flex items-start justify-between gap-2 p-2 rounded-lg bg-navy-950/60 border border-slate-800/60">
+                  <div className="flex items-center gap-2">
+                    <Cpu className="w-3.5 h-3.5 text-violet-400" />
+                    <div>
+                      <p className="font-medium text-slate-200">Groq AI Engine</p>
+                      <p className="text-[10px] text-slate-400">
+                        {health?.groq_api_status || 'Qualitative synthesis model'}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                      health?.groq_configured
+                        ? 'bg-violet-500/10 text-violet-300 border border-violet-500/30'
+                        : 'bg-slate-800 text-slate-400 border border-slate-700'
+                    }`}
+                  >
+                    {health?.groq_configured ? 'Active' : 'Fallback'}
+                  </span>
+                </div>
+
+                <p className="text-[10px] text-slate-400 text-center pt-1">
+                  Backend server health and external API quotas are independently audited.
+                </p>
+              </div>
             )}
           </div>
+
 
           {/* Quick Demo Button (if handler provided) */}
           {onLoadDemo && (

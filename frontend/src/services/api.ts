@@ -12,15 +12,30 @@ import type {
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/+$/, '');
 
+export interface ApiErrorOptions {
+  retryAfterSeconds?: number;
+  rateLimitResetEpoch?: number;
+  isOffline?: boolean;
+  isTimeout?: boolean;
+}
+
 export class ApiError extends Error {
   status: number;
   detail: string;
+  retryAfterSeconds?: number;
+  rateLimitResetEpoch?: number;
+  isOffline?: boolean;
+  isTimeout?: boolean;
 
-  constructor(status: number, detail: string) {
+  constructor(status: number, detail: string, options?: ApiErrorOptions) {
     super(detail);
     this.name = 'ApiError';
     this.status = status;
     this.detail = detail;
+    this.retryAfterSeconds = options?.retryAfterSeconds;
+    this.rateLimitResetEpoch = options?.rateLimitResetEpoch;
+    this.isOffline = options?.isOffline;
+    this.isTimeout = options?.isTimeout;
   }
 }
 
@@ -49,29 +64,110 @@ function getAuthHeaders(): HeadersInit {
 }
 
 /**
- * Checks connectivity and health status of the FastAPI backend service.
+ * Robust fetch wrapper enforcing timeouts, offline detection, and centralized network error mapping.
  */
-export async function checkBackendHealth(): Promise<HealthResponse> {
+async function safeFetch(url: string, init?: RequestInit, timeoutMs: number = 25000): Promise<Response> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new ApiError(
+      0,
+      'You are currently offline. Please check your internet connection and try again.',
+      { isOffline: true }
+    );
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  if (init?.signal) {
+    init.signal.addEventListener('abort', () => controller.abort());
+  }
+
   try {
-    const res = await fetch(`${API_BASE_URL}/api/health`, {
-      headers: {
-        Accept: 'application/json',
-      },
+    const res = await fetch(url, {
+      ...init,
+      signal: controller.signal,
     });
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new ApiError(res.status, errorData.detail || `Server health check failed with status ${res.status}`);
-    }
-
-    return await res.json();
+    return res;
   } catch (err: any) {
-    if (err instanceof ApiError) throw err;
+    if (err.name === 'AbortError') {
+      throw new ApiError(
+        504,
+        `Request timed out after ${Math.round(timeoutMs / 1000)}s. Upstream service or server may be experiencing high latency.`,
+        { isTimeout: true }
+      );
+    }
+    if (err instanceof ApiError) {
+      throw err;
+    }
     throw new ApiError(
       0,
       `Cannot connect to DevProfile AI backend at ${API_BASE_URL}. Ensure FastAPI is running on port 8000.`
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
+}
+
+/**
+ * Parses response error payloads, extracts standard rate limit headers, and maps to ApiError.
+ */
+async function handleResponseError(res: Response): Promise<never> {
+  let detail = `Request failed with HTTP status ${res.status}`;
+  let retryAfterSeconds: number | undefined;
+  let rateLimitResetEpoch: number | undefined;
+
+  const retryAfterHeader = res.headers.get('retry-after') || res.headers.get('Retry-After');
+  if (retryAfterHeader) {
+    const parsed = parseInt(retryAfterHeader, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      retryAfterSeconds = parsed;
+    }
+  }
+
+  const resetHeader = res.headers.get('x-ratelimit-reset') || res.headers.get('X-RateLimit-Reset');
+  if (resetHeader) {
+    const parsed = parseInt(resetHeader, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      rateLimitResetEpoch = parsed;
+    }
+  }
+
+  try {
+    const errorJson = await res.json();
+    if (errorJson && typeof errorJson.detail === 'string') {
+      detail = errorJson.detail;
+    } else if (errorJson && Array.isArray(errorJson.detail)) {
+      detail = errorJson.detail.map((e: any) => e.msg || 'Invalid field').join(', ');
+    }
+  } catch {
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+      detail = `The server or upstream service is temporarily experiencing an outage (HTTP ${res.status}). Please try again shortly.`;
+    }
+  }
+
+  // Clear stale token if unauthorized on a protected route
+  if (res.status === 401 && getStoredToken()) {
+    removeStoredToken();
+  }
+
+  throw new ApiError(res.status, detail, {
+    retryAfterSeconds,
+    rateLimitResetEpoch,
+  });
+}
+
+/**
+ * Checks connectivity and health status of the FastAPI backend service.
+ */
+export async function checkBackendHealth(): Promise<HealthResponse> {
+  const res = await safeFetch(`${API_BASE_URL}/api/health`, {
+    headers: { Accept: 'application/json' },
+  }, 10000);
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
 }
 
 /**
@@ -84,35 +180,16 @@ export async function fetchProfileAnalysis(username: string, isDemo: boolean = f
   }
 
   const endpoint = `${API_BASE_URL}/api/analyze/${encodeURIComponent(cleanUsername)}${isDemo ? '?demo=true' : ''}`;
+  const res = await safeFetch(endpoint, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  }, 35000); // 35s timeout for repository queries and LLM execution
 
-  try {
-    const res = await fetch(endpoint, {
-      method: 'GET',
-      headers: getAuthHeaders(),
-      credentials: 'include',
-    });
-
-    if (!res.ok) {
-      let detail = `Request failed with HTTP status ${res.status}`;
-      try {
-        const errorJson = await res.json();
-        if (errorJson.detail) {
-          detail = errorJson.detail;
-        }
-      } catch {
-        // Fall back
-      }
-      throw new ApiError(res.status, detail);
-    }
-
-    return await res.json();
-  } catch (err: any) {
-    if (err instanceof ApiError) throw err;
-    throw new ApiError(
-      0,
-      `Network connection failed. Could not reach DevProfile AI backend at ${API_BASE_URL}. Verify backend service is running.`
-    );
+  if (!res.ok) {
+    await handleResponseError(res);
   }
+  return await res.json();
 }
 
 /**
@@ -125,35 +202,16 @@ export async function retryAIAnalysis(username: string, isDemo: boolean = false)
   }
 
   const endpoint = `${API_BASE_URL}/api/analyze/${encodeURIComponent(cleanUsername)}/ai${isDemo ? '?demo=true' : ''}`;
+  const res = await safeFetch(endpoint, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  }, 30000);
 
-  try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      credentials: 'include',
-    });
-
-    if (!res.ok) {
-      let detail = `AI Analysis failed with HTTP status ${res.status}`;
-      try {
-        const errorJson = await res.json();
-        if (errorJson.detail) {
-          detail = errorJson.detail;
-        }
-      } catch {
-        // Fall back
-      }
-      throw new ApiError(res.status, detail);
-    }
-
-    return await res.json();
-  } catch (err: any) {
-    if (err instanceof ApiError) throw err;
-    throw new ApiError(
-      0,
-      `Could not contact AI analysis service at ${API_BASE_URL}. Check backend status.`
-    );
+  if (!res.ok) {
+    await handleResponseError(res);
   }
+  return await res.json();
 }
 
 // ============================================================================
@@ -161,7 +219,7 @@ export async function retryAIAnalysis(username: string, isDemo: boolean = false)
 // ============================================================================
 
 export async function registerUser(email: string, password: string, fullName?: string, defaultProfile?: string): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
@@ -173,10 +231,10 @@ export async function registerUser(email: string, password: string, fullName?: s
     credentials: 'include',
   });
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, data.detail || 'Registration failed.');
+    await handleResponseError(res);
   }
+  const data = await res.json();
   if (data.token) {
     setStoredToken(data.token);
   }
@@ -184,17 +242,17 @@ export async function registerUser(email: string, password: string, fullName?: s
 }
 
 export async function loginUser(email: string, password: string): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ email, password }),
     credentials: 'include',
   });
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, data.detail || 'Invalid email or password.');
+    await handleResponseError(res);
   }
+  const data = await res.json();
   if (data.token) {
     setStoredToken(data.token);
   }
@@ -203,18 +261,18 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
 
 export async function logoutUser(): Promise<void> {
   try {
-    await fetch(`${API_BASE_URL}/api/auth/logout`, {
+    await safeFetch(`${API_BASE_URL}/api/auth/logout`, {
       method: 'POST',
       headers: getAuthHeaders(),
       credentials: 'include',
-    });
+    }, 5000);
   } finally {
     removeStoredToken();
   }
 }
 
 export async function getMe(): Promise<UserOut> {
-  const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/me`, {
     method: 'GET',
     headers: {
       ...getAuthHeaders(),
@@ -224,52 +282,50 @@ export async function getMe(): Promise<UserOut> {
     credentials: 'include',
   });
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, data.detail || 'Failed to authenticate user.');
+    await handleResponseError(res);
   }
-  return data;
+  return await res.json();
 }
 
 export async function updateDefaultProfile(profileInput: string): Promise<UserOut> {
-  const res = await fetch(`${API_BASE_URL}/api/auth/default-profile`, {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/default-profile`, {
     method: 'PATCH',
     headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ profile_input: profileInput }),
     credentials: 'include',
   });
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, data.detail || 'Failed to update default profile handle.');
+    await handleResponseError(res);
   }
-  return data;
+  return await res.json();
 }
 
 export async function getGitHubOAuthUrl(): Promise<GitHubOAuthUrlResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/auth/github/url`, {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/github/url`, {
     method: 'GET',
     headers: { Accept: 'application/json' },
   });
-  const data = await res.json().catch(() => ({}));
+
   if (!res.ok) {
-    throw new ApiError(res.status, data.detail || 'Could not retrieve GitHub OAuth URL.');
+    await handleResponseError(res);
   }
-  return data;
+  return await res.json();
 }
 
 export async function exchangeGitHubOAuthCode(code: string, state: string): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/auth/github/callback`, {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/github/callback`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ code, state }),
     credentials: 'include',
   });
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, data.detail || 'GitHub OAuth authorization failed.');
+    await handleResponseError(res);
   }
+  const data = await res.json();
   if (data.token) {
     setStoredToken(data.token);
   }
@@ -277,30 +333,29 @@ export async function exchangeGitHubOAuthCode(code: string, state: string): Prom
 }
 
 export async function disconnectGitHub(): Promise<{ message: string; user: UserOut }> {
-  const res = await fetch(`${API_BASE_URL}/api/auth/github/disconnect`, {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/github/disconnect`, {
     method: 'POST',
     headers: getAuthHeaders(),
     credentials: 'include',
   });
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, data.detail || 'Failed to disconnect GitHub account.');
+    await handleResponseError(res);
   }
-  return data;
+  return await res.json();
 }
 
 export async function forgotPassword(email: string): Promise<{ success: boolean; message: string; documentation: string }> {
-  const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/forgot-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ email }),
   });
-  const data = await res.json().catch(() => ({}));
+
   if (!res.ok) {
-    throw new ApiError(res.status, data.detail || 'Password reset request failed.');
+    await handleResponseError(res);
   }
-  return data;
+  return await res.json();
 }
 
 // ============================================================================
@@ -313,57 +368,53 @@ export async function getAnalysisHistory(username?: string, limit = 20, offset =
   params.append('limit', limit.toString());
   params.append('offset', offset.toString());
 
-  const res = await fetch(`${API_BASE_URL}/api/history?${params.toString()}`, {
+  const res = await safeFetch(`${API_BASE_URL}/api/history?${params.toString()}`, {
     method: 'GET',
     headers: getAuthHeaders(),
     credentials: 'include',
   });
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, data.detail || 'Failed to retrieve analysis history.');
+    await handleResponseError(res);
   }
-  return data;
+  return await res.json();
 }
 
 export async function getHistoryRunDetail(runId: number): Promise<AnalysisResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/history/${runId}`, {
+  const res = await safeFetch(`${API_BASE_URL}/api/history/${runId}`, {
     method: 'GET',
     headers: getAuthHeaders(),
     credentials: 'include',
   });
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, data.detail || 'Failed to retrieve run details.');
+    await handleResponseError(res);
   }
-  return data;
+  return await res.json();
 }
 
 export async function compareHistoryRuns(currentId: number, previousId: number): Promise<RunComparisonResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/history/${currentId}/compare/${previousId}`, {
+  const res = await safeFetch(`${API_BASE_URL}/api/history/${currentId}/compare/${previousId}`, {
     method: 'GET',
     headers: getAuthHeaders(),
     credentials: 'include',
   });
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, data.detail || 'Failed to compare analysis runs.');
+    await handleResponseError(res);
   }
-  return data;
+  return await res.json();
 }
 
 export async function deleteHistoryRun(runId: number): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/api/history/${runId}`, {
+  const res = await safeFetch(`${API_BASE_URL}/api/history/${runId}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
     credentials: 'include',
   });
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, data.detail || 'Failed to delete history run.');
+    await handleResponseError(res);
   }
 }
 
@@ -372,30 +423,28 @@ export async function getTrackedRecommendations(status?: string, username?: stri
   if (status) params.append('status', status);
   if (username) params.append('username', username);
 
-  const res = await fetch(`${API_BASE_URL}/api/recommendations?${params.toString()}`, {
+  const res = await safeFetch(`${API_BASE_URL}/api/recommendations?${params.toString()}`, {
     method: 'GET',
     headers: getAuthHeaders(),
     credentials: 'include',
   });
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, data.detail || 'Failed to retrieve tracked recommendations.');
+    await handleResponseError(res);
   }
-  return data;
+  return await res.json();
 }
 
 export async function updateRecommendationStatus(recId: number, status: 'open' | 'dismissed'): Promise<TrackedRecommendationOut> {
-  const res = await fetch(`${API_BASE_URL}/api/recommendations/${recId}/status`, {
+  const res = await safeFetch(`${API_BASE_URL}/api/recommendations/${recId}/status`, {
     method: 'PATCH',
     headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
     credentials: 'include',
   });
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, data.detail || 'Failed to update recommendation status.');
+    await handleResponseError(res);
   }
-  return data;
+  return await res.json();
 }

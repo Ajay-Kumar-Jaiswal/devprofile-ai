@@ -3,9 +3,11 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import settings
 from app.database import init_db
+
 from app.models import HealthResponse
 from app.routers import analyze, auth, history, recommendations
 from app.services.github_service import github_service
@@ -68,7 +70,8 @@ async def health_check():
     """Returns application health and configuration status."""
     token_configured = bool(github_service.token)
     groq_configured = bool(settings.GROQ_API_KEY and settings.GROQ_API_KEY.strip())
-    oauth_configured = bool(settings.GITHUB_CLIENT_ID and settings.GITHUB_CLIENT_SECRET)
+    is_rate_limited = getattr(github_service, "is_rate_limited", False)
+    reset_epoch = getattr(github_service, "rate_limit_reset_epoch", None)
 
     return HealthResponse(
         status="healthy",
@@ -76,6 +79,10 @@ async def health_check():
         version="2.0.0",
         github_api_status="authenticated (rate-limit: 5,000/hr)" if token_configured else "unauthenticated (rate-limit: 60/hr)",
         groq_api_status=f"configured (model: {settings.GROQ_MODEL})" if groq_configured else "unconfigured (deterministic fallback)",
+        github_authenticated=token_configured,
+        github_rate_limited=is_rate_limited,
+        github_rate_limit_reset=reset_epoch,
+        groq_configured=groq_configured,
     )
 
 
@@ -94,6 +101,18 @@ async def root():
     }
 
 
+@app.exception_handler(SQLAlchemyError)
+async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
+    """Handles unexpected database errors safely without leaking internal SQL queries or tables."""
+    logger.error(f"Database error executing {request.method} {request.url}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "detail": "A database error occurred while processing your request. Please try again later."
+        },
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch-all unhandled exception handler ensuring clean JSON error output."""
@@ -104,3 +123,4 @@ async def global_exception_handler(request: Request, exc: Exception):
             "detail": "An unexpected server error occurred. Please try again later."
         },
     )
+

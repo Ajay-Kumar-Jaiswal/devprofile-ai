@@ -13,7 +13,9 @@ import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { RecommendationsPage } from './pages/RecommendationsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
+
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
@@ -104,12 +106,15 @@ const AppLayout: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <Router>
-        <AppLayout />
-      </Router>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router>
+          <AppLayout />
+        </Router>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 };
+
 
 export default App;
