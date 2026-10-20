@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
-  const { user, refreshUser, logout } = useAuth();
+  const { user, refreshUser, updateUser, logout } = useAuth();
   const navigate = useNavigate();
 
   const hasLocalPassword = Boolean(user?.has_password);
@@ -54,7 +54,8 @@ export const SettingsPage: React.FC = () => {
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
   // Setup email/password credentials state
-  const [setupEmail, setSetupEmail] = useState(user?.email || '');
+  // Explicit requirement: initialize email input as an empty string without prefilling
+  const [setupEmail, setSetupEmail] = useState('');
   const [setupPassword, setSetupPassword] = useState('');
   const [setupConfirmPassword, setSetupConfirmPassword] = useState('');
   const [showSetupPassword, setShowSetupPassword] = useState(false);
@@ -66,12 +67,6 @@ export const SettingsPage: React.FC = () => {
   React.useEffect(() => {
     setDefaultHandle(user?.default_profile_username || '');
   }, [user?.default_profile_username]);
-
-  React.useEffect(() => {
-    if (user?.email && !setupEmail) {
-      setSetupEmail(user.email);
-    }
-  }, [user?.email]);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,8 +167,12 @@ export const SettingsPage: React.FC = () => {
 
     try {
       const res = await setupCredentials(cleanEmail, cleanPassword, cleanConfirm);
+      if (res?.user) {
+        updateUser(res.user);
+      }
       await refreshUser();
       setSetupSuccess(res.message || 'Email and password successfully configured.');
+      setSetupEmail('');
       setSetupPassword('');
       setSetupConfirmPassword('');
       setShowSetupPassword(false);

@@ -29,6 +29,11 @@ class User(Base):
     created_at = Column(DateTime, default=utcnow, nullable=False)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
+    @property
+    def has_password(self) -> bool:
+        """Authoritative check on whether the user has a local password hash configured."""
+        return bool(self.hashed_password and str(self.hashed_password).strip())
+
     connected_github = relationship(
         "ConnectedGitHubAccount",
         back_populates="user",

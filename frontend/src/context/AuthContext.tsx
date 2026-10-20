@@ -9,6 +9,7 @@ interface AuthContextType {
   register: (email: string, pass: string, name?: string, defaultProfile?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<UserOut | null>;
+  updateUser: (updatedUser: UserOut) => void;
   isAuthDrawerOpen: boolean;
   authDrawerMode: 'signin' | 'signup';
   openAuthDrawer: (mode?: 'signin' | 'signup') => void;
@@ -41,6 +42,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       return null;
     }
+  };
+
+  const updateUser = (updatedUser: UserOut) => {
+    setUser(updatedUser);
   };
 
   useEffect(() => {
@@ -104,6 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         logout,
         refreshUser,
+        updateUser,
         isAuthDrawerOpen,
         authDrawerMode,
         openAuthDrawer,

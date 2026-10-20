@@ -53,7 +53,7 @@ def user_to_out(user: User) -> UserOut:
             connected_at=user.connected_github.connected_at,
         )
 
-    has_pwd = bool(user.hashed_password and user.hashed_password.strip())
+    has_pwd = user.has_password
 
     return UserOut(
         id=user.id,
@@ -244,12 +244,16 @@ async def forgot_password(body: ForgotPasswordRequest):
     "/change-password",
     summary="Change password for authenticated user",
 )
+@router.post(
+    "/change-password/",
+    include_in_schema=False,
+)
 async def change_password(
     body: PasswordChangeRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if not current_user.hashed_password:
+    if not current_user.has_password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password changes are not available for accounts authenticated exclusively via GitHub OAuth.",
@@ -283,12 +287,16 @@ async def change_password(
     "/setup-credentials",
     summary="Configure local email and password for authenticated OAuth user",
 )
+@router.post(
+    "/setup-credentials/",
+    include_in_schema=False,
+)
 async def setup_credentials(
     body: SetupCredentialsRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.hashed_password and current_user.hashed_password.strip():
+    if current_user.has_password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Account already has a configured password. Please use the Change Password form instead.",
@@ -308,6 +316,15 @@ async def setup_credentials(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password and confirmation do not match.",
         )
+
+    # Protect against silently overwriting existing verified account email
+    if current_user.email and current_user.email.strip():
+        registered_email = current_user.email.lower().strip()
+        if clean_email != registered_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"This account is registered with email '{current_user.email}'. To set up your password, please enter your registered account email.",
+            )
 
     # Verify duplicate email protection across accounts
     existing_user = (
