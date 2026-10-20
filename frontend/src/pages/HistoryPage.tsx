@@ -94,6 +94,7 @@ export const HistoryPage: React.FC = () => {
       setTotalRuns(0);
       setSelectedRunIds([]);
       setClearModalOpen(false);
+      window.dispatchEvent(new CustomEvent('devprofile:history-cleared'));
       setClearSuccess(res.message || 'All analysis history snapshots have been permanently cleared.');
       setTimeout(() => setClearSuccess(null), 5000);
     } catch (err: any) {

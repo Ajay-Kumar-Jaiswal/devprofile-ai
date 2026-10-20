@@ -29,6 +29,8 @@ export const SettingsPage: React.FC = () => {
   const { user, refreshUser, logout } = useAuth();
   const navigate = useNavigate();
 
+  const hasLocalPassword = Boolean(user?.has_password);
+
   // Profile handle state
   const [defaultHandle, setDefaultHandle] = useState(user?.default_profile_username || '');
   const [isUpdatingHandle, setIsUpdatingHandle] = useState(false);
@@ -214,12 +216,13 @@ export const SettingsPage: React.FC = () => {
 
   const handleDisconnectGitHub = async () => {
     // Proactively verify credentials exist so user is not stranded with a raw block
-    if (!user?.has_password || !user?.email) {
+    if (!hasLocalPassword || !user?.email) {
       setDisconnectError(
         'Cannot disconnect GitHub account: you must set an email and password first to prevent losing account access.'
       );
       const el = document.getElementById('security-section');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('setup-email-input')?.focus();
       return;
     }
 
@@ -351,10 +354,11 @@ export const SettingsPage: React.FC = () => {
                 type="button"
                 onClick={() => {
                   document.getElementById('security-section')?.scrollIntoView({ behavior: 'smooth' });
+                  document.getElementById('setup-email-input')?.focus();
                 }}
-                className="px-3 py-1.5 rounded-lg bg-violet-600/80 hover:bg-violet-600 text-white text-xs font-semibold whitespace-nowrap transition-colors self-start sm:self-center"
+                className="px-3 py-1.5 rounded-lg bg-violet-600/80 hover:bg-violet-600 text-white text-xs font-semibold whitespace-nowrap transition-colors self-start sm:self-center cursor-pointer"
               >
-                Set Up Credentials
+                Set Up Email & Password
               </button>
             </div>
           )}
@@ -395,9 +399,9 @@ export const SettingsPage: React.FC = () => {
                 type="button"
                 onClick={handleDisconnectGitHub}
                 disabled={isDisconnecting}
-                className="px-3 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs font-semibold self-start sm:self-auto transition-colors disabled:opacity-60"
+                className="px-3 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs font-semibold self-start sm:self-auto transition-colors disabled:opacity-60 cursor-pointer"
               >
-                {isDisconnecting ? 'Disconnecting...' : 'Disconnect Account'}
+                {isDisconnecting ? 'Disconnecting...' : 'Disconnect GitHub'}
               </button>
             </div>
           ) : (
@@ -457,27 +461,28 @@ export const SettingsPage: React.FC = () => {
               <span>Security</span>
             </h2>
 
-            {user?.has_password === false ? (
+            {!hasLocalPassword ? (
               <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
                 <GithubIcon className="w-3.5 h-3.5" />
                 <span>Password Not Configured</span>
               </span>
             ) : (
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
-                Email / Password
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Email &amp; Password Configured</span>
               </span>
             )}
           </div>
 
-          {user?.has_password === false ? (
+          {!hasLocalPassword ? (
             <div className="space-y-4">
               <div className="p-4 rounded-xl bg-navy-900 border border-slate-800 space-y-1.5">
                 <p className="text-xs text-slate-200 font-semibold flex items-center gap-2">
                   <KeyRound className="w-4 h-4 text-violet-400" />
-                  <span>Set Up Email and Password</span>
+                  <span>Set Up Email &amp; Password</span>
                 </p>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  You currently authenticate using GitHub OAuth. Configure an email and password below to enable direct sign-in and allow disconnecting GitHub safely without losing account access.
+                  You currently authenticate using GitHub OAuth. Configure an email and password below to attach direct login credentials to your existing account. This enables direct sign-in and allows disconnecting GitHub safely without losing account data.
                 </p>
               </div>
 
@@ -503,6 +508,7 @@ export const SettingsPage: React.FC = () => {
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3 pointer-events-none" />
                     <input
+                      id="setup-email-input"
                       type="email"
                       value={setupEmail}
                       onChange={(e) => setSetupEmail(e.target.value)}
@@ -591,9 +597,15 @@ export const SettingsPage: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-xs text-slate-400">
-                Update your account password. Choose a strong password of at least 8 characters.
-              </p>
+              <div className="p-4 rounded-xl bg-navy-900 border border-slate-800 space-y-1.5">
+                <p className="text-xs text-slate-200 font-semibold flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-violet-400" />
+                  <span>Change Password</span>
+                </p>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Update your existing account password. Choose a strong new password of at least 8 characters.
+                </p>
+              </div>
 
               {passwordSuccess && (
                 <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-2.5 animate-fadeIn">

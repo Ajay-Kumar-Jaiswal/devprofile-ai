@@ -120,6 +120,13 @@ export const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({
                   <p className="text-slate-400 leading-relaxed">{rec.action}</p>
                 </div>
               </div>
+
+              {rec.evidence && (
+                <div className="text-[11px] text-slate-400 bg-navy-950/40 px-3 py-2 rounded-lg border border-slate-800/40 flex items-start gap-1.5">
+                  <span className="font-semibold text-slate-300 shrink-0">Observed Evidence:</span>
+                  <span className="text-slate-400">{rec.evidence}</span>
+                </div>
+              )}
             </div>
           ))}
         </div>

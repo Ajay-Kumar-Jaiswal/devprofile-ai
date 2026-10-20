@@ -21,6 +21,12 @@ export const QuickComparisonBanner: React.FC<QuickComparisonBannerProps> = ({
     if (isDemo || !username) return;
 
     let mounted = true;
+
+    const handleHistoryCleared = () => {
+      if (mounted) setPriorRun(null);
+    };
+    window.addEventListener('devprofile:history-cleared', handleHistoryCleared);
+
     getAnalysisHistory(username, 2, 0)
       .then((data) => {
         if (!mounted) return;
@@ -37,6 +43,7 @@ export const QuickComparisonBanner: React.FC<QuickComparisonBannerProps> = ({
 
     return () => {
       mounted = false;
+      window.removeEventListener('devprofile:history-cleared', handleHistoryCleared);
     };
   }, [username, isDemo, currentScore]);
 

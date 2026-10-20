@@ -91,6 +91,7 @@ export interface RecommendationItem {
   description: string;
   impact: string;
   action: string;
+  evidence?: string | null;
 }
 
 export interface RoadmapStep {

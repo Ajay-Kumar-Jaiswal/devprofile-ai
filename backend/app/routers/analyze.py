@@ -118,7 +118,7 @@ async def analyze_profile(
 
     # 3. Rule-based recommendations and roadmaps (deterministic baseline)
     recommendations = generate_recommendations(profile, repos, languages, checklist)
-    roadmap_7, roadmap_30 = generate_roadmap(profile, repos, languages)
+    roadmap_7, roadmap_30 = generate_roadmap(profile, repos, languages, recommendations)
 
     # 4. Groq AI Analysis
     ai_envelope: Optional[AIAnalysisEnvelope] = None

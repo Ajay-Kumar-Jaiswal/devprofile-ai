@@ -288,6 +288,12 @@ async def setup_credentials(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if current_user.hashed_password and current_user.hashed_password.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Account already has a configured password. Please use the Change Password form instead.",
+        )
+
     clean_email = str(body.email).lower().strip()
     clean_password = body.password.strip()
 

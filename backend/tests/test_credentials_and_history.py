@@ -137,6 +137,34 @@ class TestSetupCredentials:
         assert disc_success.status_code == 200
         assert "disconnected safely" in disc_success.json()["message"]
 
+    def test_setup_credentials_rejected_if_password_already_set(self, oauth_user_with_github):
+        headers = auth_headers(oauth_user_with_github)
+
+        # Set up password once
+        resp1 = client.post(
+            "/api/auth/setup-credentials",
+            json={
+                "email": "verified_dev2@example.com",
+                "password": "SuperSecurePassword123!",
+                "confirm_password": "SuperSecurePassword123!"
+            },
+            headers=headers,
+        )
+        assert resp1.status_code == 200
+
+        # Attempting setup-credentials again must be rejected, directing user to Change Password
+        resp2 = client.post(
+            "/api/auth/setup-credentials",
+            json={
+                "email": "another@example.com",
+                "password": "AnotherPassword123!",
+                "confirm_password": "AnotherPassword123!"
+            },
+            headers=headers,
+        )
+        assert resp2.status_code == 400
+        assert "Change Password" in resp2.json()["detail"]
+
 
 class TestClearHistory:
     def test_clear_history_requires_auth(self):
@@ -250,3 +278,19 @@ class TestClearHistory:
             assert persisted_other_run.user_id == other_user_id
         finally:
             db.close()
+
+    def test_clear_history_on_already_empty_history(self, oauth_user_with_github):
+        headers = auth_headers(oauth_user_with_github)
+        resp = client.delete("/api/history", headers=headers)
+        assert resp.status_code == 200
+        assert resp.json()["deleted_count"] == 0
+
+    def test_clear_history_supported_methods_and_paths(self, oauth_user_with_github):
+        headers = auth_headers(oauth_user_with_github)
+        # Verify supported clear history operations succeed without 405 Method Not Allowed
+        for path in ("/api/history", "/api/history/clear"):
+            del_resp = client.delete(path, headers=headers)
+            assert del_resp.status_code == 200, f"DELETE {path} returned {del_resp.status_code}"
+
+        post_resp = client.post("/api/history/clear", headers=headers)
+        assert post_resp.status_code == 200, f"POST /api/history/clear returned {post_resp.status_code}"

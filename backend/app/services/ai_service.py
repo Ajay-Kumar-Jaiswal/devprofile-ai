@@ -144,8 +144,9 @@ class AIService:
                 "readme_snippet": clean_readme,
             })
 
-        from app.analyzer.recommendations import analyze_profile_links
+        from app.analyzer.recommendations import analyze_profile_links, is_links_verified
         linkedin_url, portfolio_url = analyze_profile_links(profile)
+        links_verifiable = is_links_verified(profile)
 
         return {
             "candidate_profile": {
@@ -159,6 +160,7 @@ class AIService:
                 "linkedin_url": linkedin_url,
                 "has_portfolio_website": bool(portfolio_url),
                 "portfolio_website_url": portfolio_url,
+                "links_verifiable": links_verifiable,
                 "public_repos_count": profile.public_repos,
                 "followers_count": profile.followers,
                 "account_age_years": profile.account_age_years,
@@ -225,8 +227,9 @@ class AIService:
             "3. Clearly distinguish missing metadata from negative evidence.\n"
             "4. Provide practical, high-impact, specific recommendations for campus recruitment.\n"
             "5. Do NOT claim you can predict hiring outcomes or guarantee job placement.\n"
-            "6. LINK ACCURACY: If candidate_profile['has_linkedin'] is true, NEVER recommend adding LinkedIn. If candidate_profile['has_portfolio_website'] is true, NEVER recommend adding a website/portfolio. Only recommend links that are genuinely verified as missing.\n"
-            "7. You MUST return ONLY a valid, parseable JSON object matching the requested schema exactly. No markdown fences, no conversational prose."
+            "6. LINK ACCURACY: If candidate_profile['has_linkedin'] is true, NEVER recommend adding LinkedIn. If candidate_profile['has_portfolio_website'] is true, NEVER recommend adding a website/portfolio. If candidate_profile.get('links_verifiable') is false, do NOT claim links are missing. Only recommend links that are genuinely verified as missing.\n"
+            "7. PERSONALIZED ROADMAP: Steps in 'roadmap_7_days' and 'roadmap_30_days' must directly resolve the candidate's actual observed weaknesses and project gaps. Never suggest adding links if already present.\n"
+            "8. You MUST return ONLY a valid, parseable JSON object matching the requested schema exactly. No markdown fences, no conversational prose."
         )
 
         user_content = (
@@ -513,7 +516,7 @@ class AIService:
                 ),
             ],
             profile_improvements=[
-                "Add your LinkedIn profile URL or personal blog in the profile website field.",
+                "Deploy live interactive previews for flagship applications and link them in repository headers.",
                 "Refine bio to state exact graduation year and target engineering roles.",
                 "Pin top 3 original repositories (cloud-flow-engine, dev-insight-dashboard, smart-cache-kv) on GitHub profile.",
             ],
@@ -553,8 +556,8 @@ class AIService:
             roadmap_7_days=[
                 AIRoadmapTask(
                     day="Day 1-2",
-                    task="Profile Polish & Showcase Pinning",
-                    details="Pin your top 3 repositories on GitHub profile. Add LinkedIn link in bio.",
+                    task="Profile Showcase & Flagship Pinning",
+                    details="Pin your top 3 repositories on GitHub profile and spotlight your full-stack achievements.",
                     expected_outcome="Immediate visual polish for visiting recruiters.",
                 ),
                 AIRoadmapTask(

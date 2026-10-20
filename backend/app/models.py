@@ -13,7 +13,7 @@ class UserProfile(BaseModel):
     location: Optional[str] = None
     blog: Optional[str] = None
     twitter_username: Optional[str] = None
-    social_accounts: List[Dict[str, Any]] = Field(default_factory=list)
+    social_accounts: Optional[List[Dict[str, Any]]] = None
     public_repos: int = 0
     public_gists: int = 0
     followers: int = 0
@@ -109,6 +109,7 @@ class RecommendationItem(BaseModel):
     description: str
     impact: str
     action: str
+    evidence: Optional[str] = None
 
 
 class RoadmapStep(BaseModel):
@@ -125,7 +126,7 @@ class RoadmapPhase(BaseModel):
     timeline: str
     objective: str
     is_mock_ai: bool = True
-    ai_engine_badge: str = "Phase 1: Deterministic Engine (Groq AI Integration scheduled for Phase 2)"
+    ai_engine_badge: str = "Phase 1: Evidence-Based Analysis Engine (Grounded in Verified Profile Data)"
     steps: List[RoadmapStep]
 
 

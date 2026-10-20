@@ -122,9 +122,10 @@ async def get_history_detail(
     profile_obj = github_service.parse_profile(profile_dict)
     repos_objs = github_service.parse_repositories(repos_list)
     languages_objs = [github_service.parse_profile for _ in []]  # typed helper
-    from app.models import LanguageStat
+    from app.models import LanguageStat, RecommendationItem
     languages_objs = [LanguageStat(**l) for l in languages_list]
-    roadmap_7, roadmap_30 = generate_roadmap(profile_obj, repos_objs, languages_objs)
+    recs_objs = [RecommendationItem(**r) for r in recs_list] if recs_list else None
+    roadmap_7, roadmap_30 = generate_roadmap(profile_obj, repos_objs, languages_objs, recs_objs)
 
     return AnalysisResponse(
         username=run.analyzed_login,
@@ -261,6 +262,21 @@ async def compare_runs(
     "",
     summary="Clear all analysis history snapshots for current user",
 )
+@router.delete(
+    "/",
+    summary="Clear all analysis history snapshots for current user (trailing slash)",
+    include_in_schema=False,
+)
+@router.delete(
+    "/clear",
+    summary="Clear all analysis history snapshots (clear subpath)",
+    include_in_schema=False,
+)
+@router.post(
+    "/clear",
+    summary="Clear all analysis history snapshots via POST",
+    include_in_schema=False,
+)
 async def clear_all_history(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -269,19 +285,26 @@ async def clear_all_history(
     Permanently deletes all analysis history snapshots belonging strictly
     to the authenticated user. Ownership is enforced on the backend.
     """
-    db.query(AnalysisRun).filter(AnalysisRun.user_id == current_user.id).update(
-        {AnalysisRun.previous_run_id: None}, synchronize_session=False
-    )
-    deleted_count = (
-        db.query(AnalysisRun)
-        .filter(AnalysisRun.user_id == current_user.id)
-        .delete(synchronize_session=False)
-    )
-    db.commit()
-    return {
-        "message": f"Successfully cleared {deleted_count} analysis snapshot(s).",
-        "deleted_count": deleted_count,
-    }
+    try:
+        db.query(AnalysisRun).filter(AnalysisRun.user_id == current_user.id).update(
+            {AnalysisRun.previous_run_id: None}, synchronize_session=False
+        )
+        deleted_count = (
+            db.query(AnalysisRun)
+            .filter(AnalysisRun.user_id == current_user.id)
+            .delete(synchronize_session=False)
+        )
+        db.commit()
+        return {
+            "message": f"Successfully cleared {deleted_count} analysis snapshot(s).",
+            "deleted_count": deleted_count,
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to clear analysis history: {str(e)}",
+        )
 
 
 @router.delete(
