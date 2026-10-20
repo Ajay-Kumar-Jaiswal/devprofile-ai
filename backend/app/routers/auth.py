@@ -20,6 +20,7 @@ from app.saas_models import (
     ForgotPasswordRequest,
     ForgotPasswordResponse,
     PasswordChangeRequest,
+    SetupCredentialsRequest,
     DefaultProfileRequest,
 )
 from app.services.auth_service import (
@@ -276,6 +277,56 @@ async def change_password(
     current_user.updated_at = datetime.now(timezone.utc)
     db.commit()
     return {"message": "Password changed successfully."}
+
+
+@router.post(
+    "/setup-credentials",
+    summary="Configure local email and password for authenticated OAuth user",
+)
+async def setup_credentials(
+    body: SetupCredentialsRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    clean_email = str(body.email).lower().strip()
+    clean_password = body.password.strip()
+
+    if len(clean_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters in length.",
+        )
+
+    if body.confirm_password is not None and clean_password != body.confirm_password.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password and confirmation do not match.",
+        )
+
+    # Verify duplicate email protection across accounts
+    existing_user = (
+        db.query(User)
+        .filter(User.email == clean_email, User.id != current_user.id)
+        .first()
+    )
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This email address is already associated with another account. Please choose a different email.",
+        )
+
+    # Establish credentials on current account safely
+    current_user.email = clean_email
+    current_user.hashed_password = hash_password(clean_password)
+    current_user.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(current_user)
+
+    logger.info(f"User #{current_user.id} established local credentials successfully.")
+    return {
+        "message": "Email and password successfully configured. You can now use these credentials to sign in directly.",
+        "user": user_to_out(current_user),
+    }
 
 
 # ============================================================================

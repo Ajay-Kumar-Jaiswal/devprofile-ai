@@ -86,7 +86,7 @@ async def analyze_profile(
             repos = github_service.parse_repositories(raw_repos)
         else:
             async with httpx.AsyncClient() as client:
-                raw_profile = await github_service.fetch_profile(client, validated_name)
+                raw_profile = await github_service.fetch_profile(client, validated_name, fetch_socials=True)
                 public_repos_count = raw_profile.get("public_repos", 0)
 
                 raw_repos = await github_service.fetch_repositories(
@@ -279,7 +279,7 @@ async def analyze_profile_ai_only(
             repos = github_service.parse_repositories(raw_repos)
         else:
             async with httpx.AsyncClient() as client:
-                raw_profile = await github_service.fetch_profile(client, validated_name)
+                raw_profile = await github_service.fetch_profile(client, validated_name, fetch_socials=True)
                 public_repos_count = raw_profile.get("public_repos", 0)
 
                 raw_repos = await github_service.fetch_repositories(

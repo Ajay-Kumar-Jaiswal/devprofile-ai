@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAnalysisHistory, compareHistoryRuns, deleteHistoryRun, ApiError } from '../services/api';
+import {
+  getAnalysisHistory,
+  compareHistoryRuns,
+  deleteHistoryRun,
+  clearAnalysisHistory,
+  ApiError,
+} from '../services/api';
 import type { AnalysisRunSummary, RunComparisonResponse } from '../types/api';
 import {
   History,
@@ -32,6 +38,12 @@ export const HistoryPage: React.FC = () => {
   const [comparisonData, setComparisonData] = useState<RunComparisonResponse | null>(null);
   const [isComparing, setIsComparing] = useState<boolean>(false);
   const [comparisonModalOpen, setComparisonModalOpen] = useState<boolean>(false);
+
+  // Clear all history modal state
+  const [clearModalOpen, setClearModalOpen] = useState<boolean>(false);
+  const [isClearing, setIsClearing] = useState<boolean>(false);
+  const [clearError, setClearError] = useState<string | null>(null);
+  const [clearSuccess, setClearSuccess] = useState<string | null>(null);
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -67,8 +79,31 @@ export const HistoryPage: React.FC = () => {
       await deleteHistoryRun(runId);
       setRuns((prev) => prev.filter((r) => r.id !== runId));
       setSelectedRunIds((prev) => prev.filter((id) => id !== runId));
+      setTotalRuns((prev) => Math.max(0, prev - 1));
     } catch (err) {
       alert('Failed to delete history run.');
+    }
+  };
+
+  const handleClearAllHistory = async () => {
+    setIsClearing(true);
+    setClearError(null);
+    try {
+      const res = await clearAnalysisHistory();
+      setRuns([]);
+      setTotalRuns(0);
+      setSelectedRunIds([]);
+      setClearModalOpen(false);
+      setClearSuccess(res.message || 'All analysis history snapshots have been permanently cleared.');
+      setTimeout(() => setClearSuccess(null), 5000);
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        setClearError(err.detail);
+      } else {
+        setClearError(err?.message || 'Failed to clear analysis history.');
+      }
+    } finally {
+      setIsClearing(false);
     }
   };
 
@@ -121,8 +156,22 @@ export const HistoryPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Action: Compare selected */}
-        <div className="flex items-center gap-3">
+        {/* Actions: Clear History, Compare Selected, Analyze New Profile */}
+        <div className="flex items-center flex-wrap gap-2.5">
+          {runs.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setClearError(null);
+                setClearModalOpen(true);
+              }}
+              className="px-3.5 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+              <span>Clear History</span>
+            </button>
+          )}
+
           {selectedRunIds.length === 2 && (
             <button
               onClick={handleCompareSelected}
@@ -147,6 +196,13 @@ export const HistoryPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {clearSuccess && (
+        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-2 animate-fadeIn">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{clearSuccess}</span>
+        </div>
+      )}
 
       {/* Loading state */}
       {isLoading && (
@@ -439,6 +495,74 @@ export const HistoryPage: React.FC = () => {
                 className="px-4 py-2 rounded-xl bg-navy-900 hover:bg-slate-800 border border-slate-700 text-white text-xs font-semibold transition-colors"
               >
                 Close Comparison
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear All History Confirmation Modal */}
+      {clearModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-md rounded-2xl border border-rose-500/30 bg-navy-900 shadow-2xl p-6 space-y-4 animate-fadeIn">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Clear Analysis History</h3>
+                <p className="text-xs text-slate-400">Permanently delete all historical snapshots</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 space-y-2">
+              <p className="font-semibold flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>Warning: Permanent Deletion</span>
+              </p>
+              <p className="leading-relaxed">
+                Are you sure you want to delete all <span className="font-bold text-white">{totalRuns}</span> analysis snapshot{totalRuns === 1 ? '' : 's'}? This will remove all saved scores, metrics, and comparisons. This action cannot be undone.
+              </p>
+              <p className="text-[11px] text-slate-400">
+                Your user account, password, and connected profile settings will not be affected.
+              </p>
+            </div>
+
+            {clearError && (
+              <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/30 text-xs text-rose-200">
+                {clearError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setClearModalOpen(false);
+                  setClearError(null);
+                }}
+                disabled={isClearing}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleClearAllHistory}
+                disabled={isClearing}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-glow-rose disabled:opacity-50 cursor-pointer"
+              >
+                {isClearing ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Clearing History...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Yes, Clear All History</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

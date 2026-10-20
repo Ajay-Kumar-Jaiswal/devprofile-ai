@@ -259,7 +259,9 @@ class GitHubService:
                     continue
                 raise
 
-    async def fetch_profile(self, client: httpx.AsyncClient, username: str) -> Dict[str, Any]:
+    async def fetch_profile(
+        self, client: httpx.AsyncClient, username: str, fetch_socials: bool = False
+    ) -> Dict[str, Any]:
         """Fetches public user profile information with rate limit protection."""
         self._check_rate_limit_lockout()
 
@@ -322,7 +324,30 @@ class GitHubService:
                 detail=f"GitHub API request returned error {resp.status_code}. Please verify the handle and try again.",
             )
 
-        return resp.json()
+        profile_data = resp.json()
+        if fetch_socials:
+            try:
+                profile_data["social_accounts"] = await self.fetch_social_accounts(client, username)
+            except Exception:
+                profile_data["social_accounts"] = []
+        return profile_data
+
+    async def fetch_social_accounts(
+        self, client: httpx.AsyncClient, username: str
+    ) -> List[Dict[str, Any]]:
+        """Safely fetches user social accounts from GitHub API if accessible."""
+        if self._rate_limit_reset_epoch is not None and time.time() < self._rate_limit_reset_epoch:
+            return []
+        url = f"{self.base_url}/users/{username}/social_accounts"
+        try:
+            resp = await self._safe_get(client, url, headers=self._get_headers(), timeout=self.timeout)
+            if resp.status_code == 200:
+                data = resp.json()
+                if isinstance(data, list):
+                    return data
+        except Exception as e:
+            logger.debug(f"Could not fetch social accounts for {username}: {e}")
+        return []
 
 
     async def fetch_repositories(
@@ -462,6 +487,10 @@ class GitHubService:
             except Exception:
                 account_age_years = None
 
+        socials = raw.get("social_accounts") or []
+        if not isinstance(socials, list):
+            socials = []
+
         return UserProfile(
             login=raw.get("login", ""),
             name=raw.get("name"),
@@ -472,6 +501,7 @@ class GitHubService:
             location=raw.get("location"),
             blog=raw.get("blog"),
             twitter_username=raw.get("twitter_username"),
+            social_accounts=socials,
             public_repos=raw.get("public_repos", 0),
             public_gists=raw.get("public_gists", 0),
             followers=raw.get("followers", 0),
@@ -524,6 +554,7 @@ class GitHubService:
                     full_name=repo.get("full_name", repo.get("name", "untitled")),
                     description=description,
                     html_url=repo.get("html_url", ""),
+                    homepage=repo.get("homepage"),
                     language=repo.get("language"),
                     stargazers_count=repo.get("stargazers_count", 0),
                     forks_count=repo.get("forks_count", 0),
@@ -657,6 +688,7 @@ class GitHubService:
             location="Bangalore, India",
             blog="https://alexrivera.dev",
             twitter_username="alexrivera_dev",
+            social_accounts=[{"provider": "linkedin", "url": "https://www.linkedin.com/in/alexrivera-dev"}],
             public_repos=14,
             public_gists=2,
             followers=48,

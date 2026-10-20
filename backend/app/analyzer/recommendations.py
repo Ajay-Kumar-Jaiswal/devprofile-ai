@@ -1,4 +1,6 @@
-from typing import List
+import re
+from typing import List, Optional, Tuple
+from urllib.parse import urlparse
 from app.models import (
     UserProfile,
     RepositoryItem,
@@ -10,6 +12,101 @@ from app.models import (
 )
 
 
+def extract_urls(text: Optional[str]) -> List[str]:
+    """Extracts URL strings or domain-like links from free-form text or bio."""
+    if not text:
+        return []
+    pattern = r'(?:https?://[^\s,;]+|(?:www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:/[^\s,;]*)?)'
+    matches = re.findall(pattern, text)
+    return [m.strip().rstrip('.,;:)') for m in matches if m.strip()]
+
+
+def normalize_url(raw: str) -> str:
+    """Normalizes URL for consistent destination comparison."""
+    cleaned = raw.strip()
+    if not cleaned.startswith(("http://", "https://")):
+        cleaned = "https://" + cleaned
+    return cleaned
+
+
+def is_linkedin_url(url: str) -> bool:
+    """Checks if a URL points to LinkedIn."""
+    lowered = url.lower().strip()
+    return "linkedin.com" in lowered or "lnkd.in" in lowered
+
+
+def is_portfolio_url(url: str) -> bool:
+    """Checks if a URL represents a personal website or portfolio (excluding LinkedIn, GitHub, Twitter/X)."""
+    lowered = url.lower().strip()
+    if is_linkedin_url(lowered):
+        return False
+    if "github.com" in lowered or "twitter.com" in lowered or "x.com" in lowered:
+        return False
+    try:
+        parsed = urlparse(normalize_url(lowered))
+        domain = parsed.netloc.lower()
+        if "." in domain and not domain.startswith("."):
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def analyze_profile_links(profile: UserProfile) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Inspects user profile data (social_accounts, blog, bio) to discover:
+    (linkedin_url, portfolio_url).
+    Returns (None, None) if neither is present.
+    """
+    linkedin_url = None
+    portfolio_url = None
+
+    candidate_urls: List[str] = []
+
+    # 1. Check social accounts
+    for acc in getattr(profile, "social_accounts", []) or []:
+        if isinstance(acc, dict):
+            provider = (acc.get("provider") or "").lower()
+            acc_url = acc.get("url") or ""
+            if provider == "linkedin" or is_linkedin_url(acc_url):
+                if not linkedin_url and acc_url:
+                    linkedin_url = acc_url
+            elif is_portfolio_url(acc_url):
+                if not portfolio_url and acc_url:
+                    portfolio_url = acc_url
+            if acc_url:
+                candidate_urls.append(acc_url)
+        elif isinstance(acc, str):
+            candidate_urls.append(acc)
+
+    # 2. Check profile.blog (website field)
+    if profile.blog and profile.blog.strip():
+        extracted = extract_urls(profile.blog)
+        if extracted:
+            candidate_urls.extend(extracted)
+        elif "." in profile.blog:
+            candidate_urls.append(profile.blog.strip())
+
+    # 3. Check profile.bio
+    if profile.bio and profile.bio.strip():
+        extracted = extract_urls(profile.bio)
+        if extracted:
+            candidate_urls.extend(extracted)
+
+    # Classify candidate URLs
+    for raw_u in candidate_urls:
+        if not raw_u:
+            continue
+        if is_linkedin_url(raw_u):
+            if not linkedin_url:
+                linkedin_url = raw_u
+        elif is_portfolio_url(raw_u):
+            if not portfolio_url:
+                portfolio_url = raw_u
+
+    return linkedin_url, portfolio_url
+
+
 def generate_recommendations(
     profile: UserProfile,
     repos: List[RepositoryItem],
@@ -18,6 +115,7 @@ def generate_recommendations(
 ) -> List[RecommendationItem]:
     """
     Generates actionable, prioritized recommendations based strictly on collected data.
+    Accurately inspects LinkedIn, portfolio, repositories, and profile fields.
     """
     recs: List[RecommendationItem] = []
     original_repos = [r for r in repos if not r.is_fork]
@@ -127,19 +225,85 @@ def generate_recommendations(
             )
         )
 
-    # 7. Website / Portfolio link
-    if not profile.blog or not profile.blog.strip():
+    # 7. Context-Aware Links & Social Presence
+    linkedin_url, portfolio_url = analyze_profile_links(profile)
+    has_linkedin = bool(linkedin_url)
+    has_portfolio = bool(portfolio_url)
+
+    if not has_linkedin and not has_portfolio:
+        # Case 1: Neither LinkedIn nor portfolio present
         recs.append(
             RecommendationItem(
                 id="rec-profile-website",
                 priority="low",
                 category="Branding",
-                title="Add a link to your live portfolio or LinkedIn",
-                description="No external URL is linked on your profile card.",
-                impact="Provides a frictionless path for hiring managers to view your resume or connect on professional platforms.",
-                action="Add your LinkedIn profile URL or deployed personal website to your GitHub profile links.",
+                title="Add links to your portfolio and LinkedIn profile",
+                description="Your profile currently lacks links to an external portfolio website and your LinkedIn profile.",
+                impact="Provides recruiters a direct, frictionless path to review your live work and connect with you on professional platforms.",
+                action="Navigate to GitHub Settings -> Public profile and add your LinkedIn URL and personal website to your profile card or social accounts.",
             )
         )
+    elif has_linkedin and not has_portfolio:
+        # Case 2: LinkedIn is present, but portfolio website is missing (do NOT recommend LinkedIn!)
+        recs.append(
+            RecommendationItem(
+                id="rec-profile-portfolio-missing",
+                priority="low",
+                category="Branding",
+                title="Showcase your work with a live portfolio website link",
+                description=f"Your GitHub profile features your LinkedIn profile ({linkedin_url}), but does not link to a personal website or live project portfolio.",
+                impact="A personal portfolio website provides an interactive showcase for your deployed projects, architecture deep-dives, and resume.",
+                action="Deploy a personal portfolio site (e.g. using GitHub Pages, Vercel, or Netlify) and add the URL to your GitHub profile website field.",
+            )
+        )
+    elif has_portfolio and not has_linkedin:
+        # Case 3: Portfolio is present, but LinkedIn is missing (do NOT recommend portfolio!)
+        recs.append(
+            RecommendationItem(
+                id="rec-profile-linkedin-missing",
+                priority="low",
+                category="Branding",
+                title="Connect your LinkedIn profile for recruiter discoverability",
+                description=f"Your profile features a personal website ({portfolio_url}), but lacks a direct link to your LinkedIn profile.",
+                impact="Technical recruiters on GitHub frequently check LinkedIn for professional experience, recommendations, and direct outreach.",
+                action="Add your LinkedIn profile URL to your GitHub social accounts or profile bio so recruiters can easily connect with you.",
+            )
+        )
+    else:
+        # Case 4: Both LinkedIn and Portfolio are already present!
+        # Do NOT recommend either link. Identify other meaningful opportunities instead.
+        login_lower = profile.login.lower().strip()
+        has_profile_readme_repo = any(
+            r.name.lower().strip() == login_lower and r.has_readme
+            for r in repos
+        )
+        if not has_profile_readme_repo:
+            recs.append(
+                RecommendationItem(
+                    id="rec-profile-readme",
+                    priority="medium",
+                    category="Branding",
+                    title="Create a dynamic GitHub Profile README spotlight",
+                    description=f"Your profile does not yet have a special `@{profile.login}/{profile.login}` repository to spotlight your work.",
+                    impact="A Profile README appears prominently at the top of your GitHub profile page, giving technical recruiters an immediate visual overview of your skills, pinned projects, and career highlights.",
+                    action=f"Create a public repository named exactly `{profile.login}` and add a `README.md` with project spotlights, tech stack badges, and interactive stats.",
+                )
+            )
+
+        # Check for live deployment / demo links across repositories
+        repos_with_homepage = [r for r in eval_repos if getattr(r, "homepage", None) and str(r.homepage).strip()]
+        if len(eval_repos) > 0 and len(repos_with_homepage) == 0:
+            recs.append(
+                RecommendationItem(
+                    id="rec-repo-live-demos",
+                    priority="medium",
+                    category="Project Presentation",
+                    title="Add live deployment links to your flagship projects",
+                    description="None of your evaluated repositories list a live deployment or preview URL in their repository details.",
+                    impact="Technical recruiters spend under 2 minutes reviewing GitHub. Clickable live demos (Vercel, Netlify, Render, GitHub Pages) allow them to test your applications immediately.",
+                    action="Deploy your top frontend or API projects to free modern hosting platforms and set the 'Website' field on each repository.",
+                )
+            )
 
     # Sort recommendations by priority (high -> medium -> low)
     priority_order = {"high": 0, "medium": 1, "low": 2}

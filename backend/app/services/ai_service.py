@@ -144,6 +144,9 @@ class AIService:
                 "readme_snippet": clean_readme,
             })
 
+        from app.analyzer.recommendations import analyze_profile_links
+        linkedin_url, portfolio_url = analyze_profile_links(profile)
+
         return {
             "candidate_profile": {
                 "handle": profile.login,
@@ -151,7 +154,11 @@ class AIService:
                 "bio": (profile.bio or "Not provided")[:250],
                 "location": profile.location or "Not specified",
                 "company": profile.company or "Not specified",
-                "has_external_website": bool(profile.blog),
+                "has_external_website": bool(portfolio_url or profile.blog),
+                "has_linkedin": bool(linkedin_url),
+                "linkedin_url": linkedin_url,
+                "has_portfolio_website": bool(portfolio_url),
+                "portfolio_website_url": portfolio_url,
                 "public_repos_count": profile.public_repos,
                 "followers_count": profile.followers,
                 "account_age_years": profile.account_age_years,
@@ -218,7 +225,8 @@ class AIService:
             "3. Clearly distinguish missing metadata from negative evidence.\n"
             "4. Provide practical, high-impact, specific recommendations for campus recruitment.\n"
             "5. Do NOT claim you can predict hiring outcomes or guarantee job placement.\n"
-            "6. You MUST return ONLY a valid, parseable JSON object matching the requested schema exactly. No markdown fences, no conversational prose."
+            "6. LINK ACCURACY: If candidate_profile['has_linkedin'] is true, NEVER recommend adding LinkedIn. If candidate_profile['has_portfolio_website'] is true, NEVER recommend adding a website/portfolio. Only recommend links that are genuinely verified as missing.\n"
+            "7. You MUST return ONLY a valid, parseable JSON object matching the requested schema exactly. No markdown fences, no conversational prose."
         )
 
         user_content = (

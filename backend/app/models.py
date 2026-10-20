@@ -1,4 +1,4 @@
-from typing import List, Optional, Literal, Any
+from typing import List, Dict, Optional, Literal, Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
@@ -13,6 +13,7 @@ class UserProfile(BaseModel):
     location: Optional[str] = None
     blog: Optional[str] = None
     twitter_username: Optional[str] = None
+    social_accounts: List[Dict[str, Any]] = Field(default_factory=list)
     public_repos: int = 0
     public_gists: int = 0
     followers: int = 0
@@ -29,6 +30,7 @@ class RepositoryItem(BaseModel):
     full_name: str
     description: Optional[str] = None
     html_url: str
+    homepage: Optional[str] = None
     language: Optional[str] = None
     stargazers_count: int = 0
     forks_count: int = 0

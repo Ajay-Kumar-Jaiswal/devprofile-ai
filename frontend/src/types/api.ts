@@ -8,6 +8,7 @@ export interface UserProfile {
   location: string | null;
   blog: string | null;
   twitter_username: string | null;
+  social_accounts?: Array<{ provider?: string; url?: string }>;
   public_repos: number;
   public_gists: number;
   followers: number;
@@ -23,6 +24,7 @@ export interface RepositoryItem {
   full_name: string;
   description: string | null;
   html_url: string;
+  homepage?: string | null;
   language: string | null;
   stargazers_count: number;
   forks_count: number;

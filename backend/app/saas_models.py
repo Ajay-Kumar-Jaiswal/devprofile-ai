@@ -75,6 +75,12 @@ class PasswordChangeRequest(BaseModel):
     new_password: str = Field(..., min_length=8)
 
 
+class SetupCredentialsRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+    confirm_password: Optional[str] = None
+
+
 # ============================================================================
 # History & Comparison Models
 # ============================================================================

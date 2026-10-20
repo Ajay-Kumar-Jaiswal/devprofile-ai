@@ -378,6 +378,28 @@ export async function changePassword(
   return await res.json();
 }
 
+export async function setupCredentials(
+  email: string,
+  password: string,
+  confirmPassword?: string
+): Promise<{ message: string; user: UserOut }> {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/setup-credentials`, {
+    method: 'POST',
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email,
+      password,
+      confirm_password: confirmPassword,
+    }),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
 // ============================================================================
 // History & Recommendations API Functions
 // ============================================================================
@@ -436,6 +458,19 @@ export async function deleteHistoryRun(runId: number): Promise<void> {
   if (!res.ok) {
     await handleResponseError(res);
   }
+}
+
+export async function clearAnalysisHistory(): Promise<{ message: string; deleted_count: number }> {
+  const res = await safeFetch(`${API_BASE_URL}/api/history`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
 }
 
 export async function getTrackedRecommendations(status?: string, username?: string): Promise<TrackedRecommendationOut[]> {

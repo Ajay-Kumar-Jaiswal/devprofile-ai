@@ -258,6 +258,33 @@ async def compare_runs(
 
 
 @router.delete(
+    "",
+    summary="Clear all analysis history snapshots for current user",
+)
+async def clear_all_history(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Permanently deletes all analysis history snapshots belonging strictly
+    to the authenticated user. Ownership is enforced on the backend.
+    """
+    db.query(AnalysisRun).filter(AnalysisRun.user_id == current_user.id).update(
+        {AnalysisRun.previous_run_id: None}, synchronize_session=False
+    )
+    deleted_count = (
+        db.query(AnalysisRun)
+        .filter(AnalysisRun.user_id == current_user.id)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return {
+        "message": f"Successfully cleared {deleted_count} analysis snapshot(s).",
+        "deleted_count": deleted_count,
+    }
+
+
+@router.delete(
     "/{run_id}",
     summary="Delete an analysis run from history",
 )
