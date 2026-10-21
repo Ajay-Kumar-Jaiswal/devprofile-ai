@@ -8,6 +8,8 @@ from sqlalchemy import (
     ForeignKey,
     Text,
     Index,
+    Float,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -48,6 +50,11 @@ class User(Base):
     )
     recommendations = relationship(
         "TrackedRecommendation",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    saved_internships = relationship(
+        "UserSavedInternship",
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -171,3 +178,75 @@ class OAuthState(Base):
     created_at = Column(DateTime, default=utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     consumed_at = Column(DateTime, nullable=True)
+
+
+class InternshipListing(Base):
+    """Normalized internship vacancy ingested via official public employer board APIs."""
+    __tablename__ = "internship_listings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_type = Column(String(50), nullable=False, index=True)  # greenhouse | lever | rss
+    source_board_or_site = Column(String(100), nullable=False, index=True)  # e.g. "cloudflare", "spotify"
+    source_job_id = Column(String(255), nullable=False, index=True)
+
+    company_name = Column(String(255), nullable=False, index=True)
+    title = Column(String(255), nullable=False, index=True)
+    description_html = Column(Text, nullable=False)
+    description_text = Column(Text, nullable=False)
+    location = Column(String(255), nullable=True, index=True)
+    work_mode = Column(String(50), default="unspecified", nullable=False, index=True)  # remote | hybrid | onsite | unspecified
+    is_internship = Column(Boolean, default=True, nullable=False, index=True)
+
+    # Identifiable skills (JSON lists of strings)
+    required_skills_json = Column(Text, default="[]", nullable=False)
+    preferred_skills_json = Column(Text, default="[]", nullable=False)
+
+    # Verified URLs
+    original_url = Column(String(500), nullable=False)
+    application_url = Column(String(500), nullable=True)
+
+    # Structured metadata (Only populated when provided by upstream source)
+    salary_currency = Column(String(10), nullable=True)
+    salary_min = Column(Float, nullable=True)
+    salary_max = Column(Float, nullable=True)
+    salary_interval = Column(String(20), nullable=True)  # year | month | hour
+    duration = Column(String(100), nullable=True)
+    deadline = Column(DateTime, nullable=True)
+
+    # Timestamps & Freshness
+    published_at = Column(DateTime, nullable=True)
+    updated_at_source = Column(DateTime, nullable=True)
+    first_seen_at = Column(DateTime, default=utcnow, nullable=False)
+    last_seen_at = Column(DateTime, default=utcnow, nullable=False, index=True)
+    last_verified_at = Column(DateTime, default=utcnow, nullable=False)
+    is_stale = Column(Boolean, default=False, nullable=False, index=True)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+
+    saved_by_users = relationship(
+        "UserSavedInternship",
+        back_populates="internship",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("source_type", "source_board_or_site", "source_job_id", name="uq_source_listing"),
+        Index("idx_internship_active_stale", "is_internship", "is_active", "is_stale"),
+    )
+
+
+class UserSavedInternship(Base):
+    """Tracks internships bookmarked or saved by an authenticated user."""
+    __tablename__ = "user_saved_internships"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    internship_id = Column(Integer, ForeignKey("internship_listings.id", ondelete="CASCADE"), nullable=False, index=True)
+    notes = Column(Text, nullable=True)
+    saved_at = Column(DateTime, default=utcnow, nullable=False)
+
+    user = relationship("User", back_populates="saved_internships")
+    internship = relationship("InternshipListing", back_populates="saved_by_users")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "internship_id", name="uq_user_saved_internship"),
+    )

@@ -9,7 +9,7 @@ from app.config import settings
 from app.database import init_db
 
 from app.models import HealthResponse
-from app.routers import analyze, auth, history, recommendations
+from app.routers import analyze, auth, history, recommendations, internships
 from app.services.github_service import github_service
 
 # Configure logging
@@ -58,6 +58,7 @@ app.include_router(auth.router)
 app.include_router(analyze.router)
 app.include_router(history.router)
 app.include_router(recommendations.router)
+app.include_router(internships.router)
 
 
 @app.get(

@@ -314,3 +314,104 @@ export interface TrackedRecommendationOut {
   recurrence_count: number;
   events: RecommendationEventOut[];
 }
+
+// ============================================================================
+// Internship Matches Interfaces (Official APIs — No Scraping)
+// ============================================================================
+
+export interface ScoreBreakdown {
+  tech_stack_score: number;
+  tools_score: number;
+  readiness_score: number;
+  domain_score: number;
+}
+
+export interface InternshipMatchSummaryOut {
+  match_score: number;
+  fit_level: 'Strong Match' | 'Good Match' | 'Potential Fit';
+  matched_skills: string[];
+  not_demonstrated_skills: string[];
+  score_breakdown: ScoreBreakdown;
+  fit_reasons: string[];
+  evidence_used: string;
+}
+
+export interface InternshipListingSummaryOut {
+  id: number;
+  source_type: string;
+  source_board_or_site: string;
+  source_job_id: string;
+  company_name: string;
+  title: string;
+  location: string | null;
+  work_mode: 'remote' | 'hybrid' | 'onsite' | 'unspecified';
+  is_internship: boolean;
+  required_skills: string[];
+  preferred_skills: string[];
+  original_url: string;
+  application_url: string | null;
+  salary_currency: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_interval: string | null;
+  duration: string | null;
+  deadline: string | null;
+  published_at: string | null;
+  last_seen_at: string;
+  last_verified_at: string;
+  is_stale: boolean;
+  is_saved: boolean;
+  match?: InternshipMatchSummaryOut | null;
+}
+
+export interface InternshipDetailOut extends InternshipListingSummaryOut {
+  description_html: string;
+  description_text: string;
+  ai_explanation?: string | null;
+}
+
+export interface InternshipsListResponse {
+  total: number;
+  items: InternshipListingSummaryOut[];
+  configured_sources_count: number;
+  active_listings_count: number;
+  has_profile_analysis: boolean;
+}
+
+export interface InternshipSourceInfo {
+  provider: string;
+  identifier: string;
+  label: string;
+  api_endpoint: string;
+  listings_count: number;
+  last_sync_status: string;
+}
+
+export interface InternshipSourcesResponse {
+  sources: InternshipSourceInfo[];
+  total_configured: number;
+  total_active_listings: number;
+  stale_threshold_hours: number;
+}
+
+export interface SyncResultOut {
+  status: string;
+  sources_checked: number;
+  listings_ingested: number;
+  listings_updated: number;
+  listings_marked_stale: number;
+  message: string;
+}
+
+export interface InternshipQueryParams {
+  search?: string;
+  location?: string;
+  work_mode?: string;
+  is_internship_only?: boolean;
+  saved_only?: boolean;
+  include_stale?: boolean;
+  min_score?: number;
+  sort_by?: 'match' | 'recent' | 'company';
+  limit?: number;
+  offset?: number;
+}

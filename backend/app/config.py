@@ -63,6 +63,43 @@ class Settings(BaseSettings):
     # Set to comma-separated GitHub logins (e.g. "octocat,myuser") to restrict instance access
     ALLOWED_GITHUB_ACCOUNTS: Optional[str] = None
 
+    # Internship Job Board Integrations (Public Official APIs - No Scraping)
+    # Comma-separated Greenhouse employer board tokens (e.g. "cloudflare,canonical,gitlab")
+    INTERNSHIP_GREENHOUSE_BOARDS: Optional[str] = "cloudflare,canonical,gitlab,figma"
+    # Comma-separated Lever employer site identifiers (e.g. "spotify,palantir")
+    INTERNSHIP_LEVER_SITES: Optional[str] = "spotify,palantir"
+    # Comma-separated RSS/Atom feed definitions in Name:URL format (e.g. "PythonOrg:https://www.python.org/jobs/feed/rss/")
+    INTERNSHIP_RSS_FEEDS: Optional[str] = None
+    INTERNSHIP_STALE_HOURS: int = 48
+    INTERNSHIP_SYNC_TIMEOUT_SECONDS: float = 15.0
+
+    @property
+    def greenhouse_boards_list(self) -> list[str]:
+        raw = os.getenv("INTERNSHIP_GREENHOUSE_BOARDS", self.INTERNSHIP_GREENHOUSE_BOARDS or "")
+        return [b.strip() for b in raw.split(",") if b.strip()]
+
+    @property
+    def lever_sites_list(self) -> list[str]:
+        raw = os.getenv("INTERNSHIP_LEVER_SITES", self.INTERNSHIP_LEVER_SITES or "")
+        return [s.strip() for s in raw.split(",") if s.strip()]
+
+    @property
+    def rss_feeds_list(self) -> list[tuple[str, str]]:
+        raw = os.getenv("INTERNSHIP_RSS_FEEDS", self.INTERNSHIP_RSS_FEEDS or "")
+        feeds: list[tuple[str, str]] = []
+        for item in raw.split(","):
+            item = item.strip()
+            if not item:
+                continue
+            if ":" in item:
+                name, url = item.split(":", 1)
+                if url.startswith("//"):
+                    url = "https:" + url
+                elif not (url.startswith("http://") or url.startswith("https://")):
+                    url = "https://" + url
+                feeds.append((name.strip(), url.strip()))
+        return feeds
+
     @property
     def github_callback_url(self) -> str:
         """Retrieves configured callback URL with fallback."""

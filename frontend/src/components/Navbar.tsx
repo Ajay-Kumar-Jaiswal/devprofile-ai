@@ -47,6 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onLoadDemo, isLoading = false })
 
   const navLinks = [
     { to: '/dashboard', label: 'Dashboard' },
+    { to: '/internships', label: 'Internships' },
     { to: '/history', label: 'History' },
     { to: '/recommendations', label: 'Progress' },
   ];

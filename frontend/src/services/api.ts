@@ -8,6 +8,11 @@ import type {
   HistoryListResponse,
   RunComparisonResponse,
   TrackedRecommendationOut,
+  InternshipsListResponse,
+  InternshipDetailOut,
+  InternshipSourcesResponse,
+  SyncResultOut,
+  InternshipQueryParams,
 } from '../types/api';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/+$/, '');
@@ -495,6 +500,114 @@ export async function updateRecommendationStatus(recId: number, status: 'open' |
     method: 'PATCH',
     headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
+// ============================================================================
+// Internship Matches API Functions (Official APIs — No Scraping)
+// ============================================================================
+
+export async function getInternships(params: InternshipQueryParams = {}): Promise<InternshipsListResponse> {
+  const q = new URLSearchParams();
+  if (params.search) q.append('search', params.search);
+  if (params.location) q.append('location', params.location);
+  if (params.work_mode) q.append('work_mode', params.work_mode);
+  if (params.is_internship_only !== undefined) q.append('is_internship_only', String(params.is_internship_only));
+  if (params.saved_only) q.append('saved_only', 'true');
+  if (params.include_stale) q.append('include_stale', 'true');
+  if (params.min_score !== undefined) q.append('min_score', String(params.min_score));
+  if (params.sort_by) q.append('sort_by', params.sort_by);
+  if (params.limit) q.append('limit', String(params.limit));
+  if (params.offset) q.append('offset', String(params.offset));
+
+  const res = await safeFetch(`${API_BASE_URL}/api/internships?${q.toString()}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
+export async function getInternshipDetail(id: number, ai = false): Promise<InternshipDetailOut> {
+  const res = await safeFetch(`${API_BASE_URL}/api/internships/${id}?ai=${ai}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
+export async function saveInternship(id: number, notes?: string): Promise<{ message: string; is_saved: boolean }> {
+  const res = await safeFetch(`${API_BASE_URL}/api/internships/${id}/save`, {
+    method: 'POST',
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes }),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
+export async function unsaveInternship(id: number): Promise<{ message: string; is_saved: boolean }> {
+  const res = await safeFetch(`${API_BASE_URL}/api/internships/${id}/save`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
+export async function getSavedInternships(limit = 50, offset = 0): Promise<InternshipsListResponse> {
+  const res = await safeFetch(`${API_BASE_URL}/api/internships/saved?limit=${limit}&offset=${offset}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
+export async function syncInternships(): Promise<SyncResultOut> {
+  const res = await safeFetch(`${API_BASE_URL}/api/internships/refresh-matches`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
+export async function getInternshipSources(): Promise<InternshipSourcesResponse> {
+  const res = await safeFetch(`${API_BASE_URL}/api/internships/sources`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
     credentials: 'include',
   });
 

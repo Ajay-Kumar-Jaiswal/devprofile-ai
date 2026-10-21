@@ -14,6 +14,7 @@ import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { RecommendationsPage } from './pages/RecommendationsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { InternshipsPage } from './pages/InternshipsPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
 
@@ -72,6 +73,14 @@ const AppLayout: React.FC = () => {
             element={
               <ProtectedRoute>
                 <RecommendationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/internships"
+            element={
+              <ProtectedRoute>
+                <InternshipsPage />
               </ProtectedRoute>
             }
           />
