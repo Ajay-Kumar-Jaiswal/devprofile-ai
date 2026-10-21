@@ -1,13 +1,62 @@
+import ipaddress
 import logging
+import socket
+import urllib.parse
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import httpx
 
 from app.internships.adapters.base import BaseJobSourceAdapter, RawListing
 from app.internships.sanitizer import parse_datetime_flexible
 
 logger = logging.getLogger("devprofile_ai.internships.rss")
+
+
+def is_safe_public_feed_url(url: str) -> Tuple[bool, Optional[str]]:
+    """
+    Defensive SSRF protection for configured RSS/Atom job feeds.
+    Enforces HTTP/HTTPS and prevents access to internal loopback, private RFC-1918,
+    link-local, and cloud metadata endpoints.
+    """
+    if not url or not isinstance(url, str):
+        return False, "Empty or invalid URL"
+
+    try:
+        parsed = urllib.parse.urlparse(url.strip())
+        if parsed.scheme.lower() not in ("http", "https"):
+            return False, f"Unsupported scheme '{parsed.scheme}'; only http and https are permitted."
+
+        hostname = parsed.hostname
+        if not hostname:
+            return False, "Missing hostname in feed URL."
+
+        # Reject obvious local hostnames
+        lower_host = hostname.lower()
+        if lower_host in ("localhost", "127.0.0.1", "::1") or lower_host.endswith(".local") or lower_host.endswith(".internal"):
+            return False, f"Local host '{hostname}' is not permitted."
+
+        # Resolve IP to verify public routing
+        try:
+            addr_info = socket.getaddrinfo(hostname, None)
+            for entry in addr_info:
+                ip_str = entry[4][0]
+                ip_obj = ipaddress.ip_address(ip_str)
+                if (
+                    ip_obj.is_loopback
+                    or ip_obj.is_private
+                    or ip_obj.is_link_local
+                    or ip_obj.is_multicast
+                    or ip_obj.is_reserved
+                ):
+                    return False, f"Feed hostname '{hostname}' resolves to restricted IP {ip_str}."
+        except socket.gaierror as gai_err:
+            return False, f"Could not resolve host '{hostname}': {gai_err}"
+
+        return True, None
+
+    except Exception as exc:
+        return False, f"URL validation error: {exc}"
 
 
 class RssJobFeedAdapter(BaseJobSourceAdapter):
@@ -40,6 +89,13 @@ class RssJobFeedAdapter(BaseJobSourceAdapter):
             url = clean_config
             company_name = "Official Feed"
 
+        # Defensive SSRF verification
+        is_safe, reason = is_safe_public_feed_url(url)
+        if not is_safe:
+            logger.warning(f"Rejecting unsafe or restricted RSS feed URL '{url}': {reason}")
+            self.record_status(clean_config, "invalid_config", f"SSRF security rejected feed URL: {reason}")
+            return []
+
         try:
             resp = await client.get(
                 url,
@@ -47,6 +103,7 @@ class RssJobFeedAdapter(BaseJobSourceAdapter):
             )
             if resp.status_code != 200:
                 logger.warning(f"RSS feed '{url}' returned HTTP {resp.status_code}")
+                self.record_status(clean_config, "temporarily_unavailable", f"Feed returned HTTP {resp.status_code}.")
                 return []
 
             # Safe parsing
@@ -56,22 +113,31 @@ class RssJobFeedAdapter(BaseJobSourceAdapter):
             # Detect RSS vs Atom
             tag = root.tag.lower()
             if "rss" in tag or root.find("channel") is not None:
-                return self._parse_rss2(root, company_name, url)
+                items = self._parse_rss2(root, company_name, url)
             elif "feed" in tag:
-                return self._parse_atom(root, company_name, url)
+                items = self._parse_atom(root, company_name, url)
             else:
-                # Try finding channel anyway
                 channel = root.find("channel")
                 if channel is not None:
-                    return self._parse_rss2(root, company_name, url)
-                logger.warning(f"Unrecognized feed root element '{root.tag}' for '{url}'.")
-                return []
+                    items = self._parse_rss2(root, company_name, url)
+                else:
+                    logger.warning(f"Unrecognized feed root element '{root.tag}' for '{url}'.")
+                    self.record_status(clean_config, "invalid_config", f"Unrecognized XML root element '{root.tag}'.")
+                    return []
+
+            if items:
+                self.record_status(clean_config, "healthy_with_results", f"Operational ({len(items)} feed items parsed)")
+            else:
+                self.record_status(clean_config, "healthy_empty", "Feed verified accessible; no current items.")
+            return items
 
         except httpx.TimeoutException:
             logger.warning(f"Timeout fetching RSS feed '{url}'.")
+            self.record_status(clean_config, "temporarily_unavailable", "Timeout connecting to feed URL.")
             return []
         except Exception as e:
             logger.error(f"Error parsing RSS/Atom feed '{url}': {e}", exc_info=True)
+            self.record_status(clean_config, "temporarily_unavailable", f"Error parsing feed: {e}")
             return []
 
     def _parse_rss2(self, root: ET.Element, company_default: str, feed_url: str) -> List[RawListing]:

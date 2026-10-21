@@ -37,19 +37,23 @@ class LeverPostingsAdapter(BaseJobSourceAdapter):
             )
             if resp.status_code == 404:
                 logger.warning(f"Lever employer site '{clean_site}' not found (HTTP 404).")
+                self.record_status(clean_site, "invalid_config", f"Employer site '{clean_site}' not found on Lever (HTTP 404).")
                 return []
             if resp.status_code == 429:
                 logger.warning(f"Rate limited by Lever API for site '{clean_site}' (HTTP 429).")
+                self.record_status(clean_site, "rate_limited", f"Rate limited by Lever API for site '{clean_site}' (HTTP 429).")
                 return []
             if resp.status_code != 200:
                 logger.warning(
                     f"Lever API returned HTTP {resp.status_code} for site '{clean_site}': {resp.text[:200]}"
                 )
+                self.record_status(clean_site, "temporarily_unavailable", f"Lever API error (HTTP {resp.status_code}).")
                 return []
 
             data = resp.json()
             if not isinstance(data, list):
                 logger.warning(f"Lever API returned non-list JSON for site '{clean_site}'.")
+                self.record_status(clean_site, "invalid_config", "Unexpected JSON response structure.")
                 return []
 
             company_display = clean_site.replace("-", " ").replace("_", " ").title()
@@ -141,11 +145,17 @@ class LeverPostingsAdapter(BaseJobSourceAdapter):
                 )
 
             logger.info(f"Lever site '{clean_site}' returned {len(listings)} active postings.")
+            if listings:
+                self.record_status(clean_site, "healthy_with_results", f"Operational ({len(listings)} active postings returned)")
+            else:
+                self.record_status(clean_site, "healthy_empty", "Verified accessible; no current vacancies published by employer.")
             return listings
 
         except httpx.TimeoutException:
             logger.warning(f"Timeout connecting to Lever API for site '{clean_site}'.")
+            self.record_status(clean_site, "temporarily_unavailable", "Request timed out connecting to Lever API.")
             return []
         except Exception as e:
             logger.error(f"Unexpected error fetching Lever site '{clean_site}': {e}", exc_info=True)
+            self.record_status(clean_site, "temporarily_unavailable", f"Unexpected connection error: {e}")
             return []

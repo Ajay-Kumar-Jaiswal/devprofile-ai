@@ -39,14 +39,17 @@ class GreenhouseJobBoardAdapter(BaseJobSourceAdapter):
             )
             if resp.status_code == 404:
                 logger.warning(f"Greenhouse board '{clean_token}' not found (HTTP 404).")
+                self.record_status(clean_token, "invalid_config", f"Employer board '{clean_token}' not found on Greenhouse (HTTP 404).")
                 return []
             if resp.status_code == 429:
                 logger.warning(f"Rate limited by Greenhouse API for board '{clean_token}' (HTTP 429).")
+                self.record_status(clean_token, "rate_limited", f"Rate limited by Greenhouse API for board '{clean_token}' (HTTP 429).")
                 return []
             if resp.status_code != 200:
                 logger.warning(
                     f"Greenhouse API returned HTTP {resp.status_code} for board '{clean_token}': {resp.text[:200]}"
                 )
+                self.record_status(clean_token, "temporarily_unavailable", f"Greenhouse API error (HTTP {resp.status_code}).")
                 return []
 
             data = resp.json()
@@ -106,11 +109,17 @@ class GreenhouseJobBoardAdapter(BaseJobSourceAdapter):
                 )
 
             logger.info(f"Greenhouse board '{clean_token}' returned {len(listings)} active postings.")
+            if listings:
+                self.record_status(clean_token, "healthy_with_results", f"Operational ({len(listings)} active postings returned)")
+            else:
+                self.record_status(clean_token, "healthy_empty", "Verified accessible; no current vacancies published by employer.")
             return listings
 
         except httpx.TimeoutException:
             logger.warning(f"Timeout connecting to Greenhouse API for board '{clean_token}'.")
+            self.record_status(clean_token, "temporarily_unavailable", "Request timed out connecting to Greenhouse API.")
             return []
         except Exception as e:
             logger.error(f"Unexpected error fetching Greenhouse board '{clean_token}': {e}", exc_info=True)
+            self.record_status(clean_token, "temporarily_unavailable", f"Unexpected connection error: {e}")
             return []

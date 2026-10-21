@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
 import httpx
 
 from app.config import settings
@@ -62,6 +62,47 @@ class SourceRegistry:
             })
 
         return sources
+
+    def get_investigated_platforms(self) -> List[Dict[str, Any]]:
+        """
+        Documented metadata on evaluated Indian internship platforms where official public
+        developer APIs are not currently available or require enterprise partnerships.
+        """
+        return [
+            {
+                "provider": "internshala",
+                "identifier": "internshala",
+                "label": "Internshala",
+                "api_endpoint": "https://internshala.com/internships/",
+                "official_portal_url": "https://internshala.com/internships/",
+                "health_status": "disabled_no_authorized_api",
+                "status_message": "No official public developer API or open XML/RSS feed available. Automated scraping is strictly prohibited by Terms of Service.",
+                "authorized_api_available": False,
+                "listings_count": 0,
+            },
+            {
+                "provider": "naukri",
+                "identifier": "naukri",
+                "label": "Naukri (Info Edge)",
+                "api_endpoint": "https://www.naukri.com/internship-jobs",
+                "official_portal_url": "https://www.naukri.com/internship-jobs",
+                "health_status": "disabled_no_authorized_api",
+                "status_message": "Requires enterprise B2B recruiter ATS contract with Info Edge. No public developer search API is provided.",
+                "authorized_api_available": False,
+                "listings_count": 0,
+            },
+            {
+                "provider": "unstop",
+                "identifier": "unstop",
+                "label": "Unstop (formerly Dare2Compete)",
+                "api_endpoint": "https://unstop.com/internships",
+                "official_portal_url": "https://unstop.com/internships",
+                "health_status": "disabled_no_authorized_api",
+                "status_message": "No official public developer API or syndicated job feed. Proprietary frontend endpoints only.",
+                "authorized_api_available": False,
+                "listings_count": 0,
+            },
+        ]
 
     async def fetch_all_configured(self, client: httpx.AsyncClient) -> List[RawListing]:
         """

@@ -63,13 +63,17 @@ class Settings(BaseSettings):
     # Set to comma-separated GitHub logins (e.g. "octocat,myuser") to restrict instance access
     ALLOWED_GITHUB_ACCOUNTS: Optional[str] = None
 
-    # Internship Job Board Integrations (Public Official APIs - No Scraping)
-    # Comma-separated Greenhouse employer board tokens (e.g. "cloudflare,canonical,gitlab")
-    INTERNSHIP_GREENHOUSE_BOARDS: Optional[str] = "cloudflare,canonical,gitlab,figma"
-    # Comma-separated Lever employer site identifiers (e.g. "spotify,palantir")
-    INTERNSHIP_LEVER_SITES: Optional[str] = "spotify,palantir"
-    # Comma-separated RSS/Atom feed definitions in Name:URL format (e.g. "PythonOrg:https://www.python.org/jobs/feed/rss/")
-    INTERNSHIP_RSS_FEEDS: Optional[str] = None
+    # Internship Job Board Integrations (Public Official APIs Only — Strictly No Scraping)
+    # Comma-separated verified Greenhouse employer board tokens
+    INTERNSHIP_GREENHOUSE_BOARDS: Optional[str] = (
+        "stripe,cloudflare,figma,airbnb,datadog,groww,elastic,gitlab,canonical,coinbase,robinhood,affirm,vercel,reddit,twitch,mongodb"
+    )
+    # Comma-separated verified Lever employer site identifiers
+    INTERNSHIP_LEVER_SITES: Optional[str] = "palantir,spotify"
+    # Comma-separated verified RSS/Atom feed definitions in Name:URL format
+    INTERNSHIP_RSS_FEEDS: Optional[str] = (
+        "Python Software Foundation:https://www.python.org/jobs/feed/rss/,We Work Remotely:https://weworkremotely.com/categories/remote-programming-jobs.rss"
+    )
     INTERNSHIP_STALE_HOURS: int = 48
     INTERNSHIP_SYNC_TIMEOUT_SECONDS: float = 15.0
 

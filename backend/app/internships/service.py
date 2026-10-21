@@ -203,6 +203,8 @@ class InternshipsService:
         saved_only: bool = False,
         include_stale: bool = False,
         min_score: Optional[int] = None,
+        role_category: Optional[str] = None,
+        employer: Optional[str] = None,
         sort_by: str = "match",  # match | recent | company
         limit: int = 50,
         offset: int = 0,
@@ -232,13 +234,101 @@ class InternshipsService:
         if saved_only:
             query = query.filter(InternshipListing.id.in_(saved_ids if saved_ids else [-1]))
 
-        # Location filter
+        # Enhanced Location filter (supports India & Remote targeting)
         if location and location.strip():
-            query = query.filter(InternshipListing.location.ilike(f"%{location.strip()}%"))
+            clean_loc = location.strip().lower()
+            if clean_loc in ("india", "india_remote", "in"):
+                query = query.filter(
+                    or_(
+                        InternshipListing.location.ilike("%india%"),
+                        InternshipListing.location.ilike("%bangalore%"),
+                        InternshipListing.location.ilike("%bengaluru%"),
+                        InternshipListing.location.ilike("%hyderabad%"),
+                        InternshipListing.location.ilike("%pune%"),
+                        InternshipListing.location.ilike("%gurgaon%"),
+                        InternshipListing.location.ilike("%gurugram%"),
+                        InternshipListing.location.ilike("%noida%"),
+                        InternshipListing.location.ilike("%mumbai%"),
+                        InternshipListing.location.ilike("%delhi%"),
+                        InternshipListing.work_mode == "remote",
+                    )
+                )
+            else:
+                query = query.filter(InternshipListing.location.ilike(f"%{location.strip()}%"))
+
+        # Employer filter
+        if employer and employer.strip():
+            emp_term = f"%{employer.strip()}%"
+            query = query.filter(
+                or_(
+                    InternshipListing.company_name.ilike(emp_term),
+                    InternshipListing.source_board_or_site.ilike(emp_term),
+                )
+            )
 
         # Work mode filter (remote, hybrid, onsite)
         if work_mode and work_mode.lower() in ("remote", "hybrid", "onsite"):
             query = query.filter(InternshipListing.work_mode == work_mode.lower())
+
+        # Role Category filter
+        if role_category and role_category.strip():
+            cat = role_category.strip().lower()
+            if cat == "frontend":
+                query = query.filter(
+                    or_(
+                        InternshipListing.title.ilike("%frontend%"),
+                        InternshipListing.title.ilike("%front-end%"),
+                        InternshipListing.title.ilike("%front end%"),
+                        InternshipListing.title.ilike("%ui%"),
+                        InternshipListing.required_skills_json.ilike("%react%"),
+                        InternshipListing.required_skills_json.ilike("%typescript%"),
+                    )
+                )
+            elif cat == "backend":
+                query = query.filter(
+                    or_(
+                        InternshipListing.title.ilike("%backend%"),
+                        InternshipListing.title.ilike("%back-end%"),
+                        InternshipListing.title.ilike("%back end%"),
+                        InternshipListing.title.ilike("%api%"),
+                        InternshipListing.required_skills_json.ilike("%fastapi%"),
+                        InternshipListing.required_skills_json.ilike("%python%"),
+                        InternshipListing.required_skills_json.ilike("%node%"),
+                        InternshipListing.required_skills_json.ilike("%go%"),
+                    )
+                )
+            elif cat == "fullstack":
+                query = query.filter(
+                    or_(
+                        InternshipListing.title.ilike("%fullstack%"),
+                        InternshipListing.title.ilike("%full-stack%"),
+                        InternshipListing.title.ilike("%full stack%"),
+                    )
+                )
+            elif cat in ("ai_ml_data", "data", "ml", "ai"):
+                query = query.filter(
+                    or_(
+                        InternshipListing.title.ilike("%data%"),
+                        InternshipListing.title.ilike("%machine learning%"),
+                        InternshipListing.title.ilike("%ml%"),
+                        InternshipListing.title.ilike("%ai%"),
+                        InternshipListing.required_skills_json.ilike("%machine learning%"),
+                        InternshipListing.required_skills_json.ilike("%pytorch%"),
+                    )
+                )
+            elif cat in ("devops_cloud", "devops", "cloud", "infra"):
+                query = query.filter(
+                    or_(
+                        InternshipListing.title.ilike("%devops%"),
+                        InternshipListing.title.ilike("%cloud%"),
+                        InternshipListing.title.ilike("%infra%"),
+                        InternshipListing.title.ilike("%sre%"),
+                        InternshipListing.title.ilike("%reliability%"),
+                        InternshipListing.required_skills_json.ilike("%docker%"),
+                        InternshipListing.required_skills_json.ilike("%kubernetes%"),
+                        InternshipListing.required_skills_json.ilike("%aws%"),
+                    )
+                )
 
         # Keyword / Text search
         if search and search.strip():
@@ -460,7 +550,7 @@ class InternshipsService:
         return True
 
     def get_sources_overview(self, db: Session) -> InternshipSourcesResponse:
-        """Returns metadata on all configured boards and current listing volume."""
+        """Returns metadata on all configured boards, health telemetry, and investigated platforms."""
         configured = source_registry.get_configured_sources()
         sources_info: List[InternshipSourceInfo] = []
 
@@ -482,6 +572,19 @@ class InternshipsService:
                 .count()
             )
 
+            # Retrieve telemetry from adapter
+            try:
+                adapter = source_registry.get_adapter(provider)
+                telemetry = adapter.get_source_status(ident)
+            except Exception:
+                telemetry = {}
+
+            health = telemetry.get("health_status") or ("healthy_with_results" if count > 0 else "configured")
+            msg = telemetry.get("status_message") or (
+                f"Operational ({count} active vacancies indexed)" if count > 0 else "Configured in backend; awaiting sync."
+            )
+            last_checked = telemetry.get("last_checked_at")
+
             sources_info.append(
                 InternshipSourceInfo(
                     provider=provider,
@@ -490,6 +593,29 @@ class InternshipsService:
                     api_endpoint=s["api_endpoint"],
                     listings_count=count,
                     last_sync_status="active" if count > 0 else "configured",
+                    health_status=health,
+                    status_message=msg,
+                    last_checked_at=last_checked,
+                    official_portal_url=s["api_endpoint"],
+                    authorized_api_available=True,
+                )
+            )
+
+        # Include investigated Indian platforms as disabled
+        for inv in source_registry.get_investigated_platforms():
+            sources_info.append(
+                InternshipSourceInfo(
+                    provider=inv["provider"],
+                    identifier=inv["identifier"],
+                    label=inv["label"],
+                    api_endpoint=inv["api_endpoint"],
+                    listings_count=0,
+                    last_sync_status="disabled",
+                    health_status=inv["health_status"],
+                    status_message=inv["status_message"],
+                    last_checked_at=None,
+                    official_portal_url=inv["official_portal_url"],
+                    authorized_api_available=False,
                 )
             )
 

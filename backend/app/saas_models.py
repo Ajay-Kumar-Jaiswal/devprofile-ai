@@ -57,6 +57,11 @@ class GitHubOAuthCallbackRequest(BaseModel):
     state: str
 
 
+class GitHubLinkCallbackRequest(BaseModel):
+    code: str
+    state: str
+
+
 class DefaultProfileRequest(BaseModel):
     profile_input: str = Field(..., description="GitHub handle or profile URL to set as default")
 

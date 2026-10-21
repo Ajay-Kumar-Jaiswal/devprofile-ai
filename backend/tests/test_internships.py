@@ -11,7 +11,7 @@ from app.services.auth_service import hash_password, create_access_token
 from app.internships.adapters.base import RawListing
 from app.internships.adapters.greenhouse import GreenhouseJobBoardAdapter
 from app.internships.adapters.lever import LeverPostingsAdapter
-from app.internships.adapters.rss import RssJobFeedAdapter
+from app.internships.adapters.rss import RssJobFeedAdapter, is_safe_public_feed_url
 from app.internships.sanitizer import sanitize_html, strip_html_to_plain_text, validate_web_url
 from app.internships.keyword_extractor import extract_skills_from_text, is_internship_or_early_career
 from app.internships.matcher import CandidateSkillsProfile, calculate_match_score
@@ -483,3 +483,279 @@ async def test_internships_api_flow(auth_headers, test_user):
         sources_data = sources_resp.json()
         assert "sources" in sources_data
         assert "total_configured" in sources_data
+
+
+# ==============================================================================
+# 7. SSRF Protection, Enhanced Filters & Source Health Taxonomy Tests
+# ==============================================================================
+
+def test_rss_ssrf_protection_blocks_private_and_metadata_ips():
+    """Verify SSRF protection strictly rejects loopback, RFC-1918, link-local, and non-http URLs."""
+    # Loopback
+    is_safe, _ = is_safe_public_feed_url("http://127.0.0.1:8000/feed.xml")
+    assert is_safe is False
+    is_safe, _ = is_safe_public_feed_url("http://localhost/rss")
+    assert is_safe is False
+    is_safe, _ = is_safe_public_feed_url("http://127.0.0.2/feed")
+    assert is_safe is False
+
+    # Link-local cloud metadata (AWS / GCP / Azure / DigitalOcean metadata endpoints)
+    is_safe, _ = is_safe_public_feed_url("http://169.254.169.254/latest/meta-data")
+    assert is_safe is False
+    is_safe, _ = is_safe_public_feed_url("http://169.254.169.254/computeMetadata/v1/")
+    assert is_safe is False
+
+    # Private RFC-1918 networks
+    is_safe, _ = is_safe_public_feed_url("http://10.0.0.1/rss")
+    assert is_safe is False
+    is_safe, _ = is_safe_public_feed_url("http://192.168.1.1/feed.xml")
+    assert is_safe is False
+    is_safe, _ = is_safe_public_feed_url("http://172.16.0.5/jobs.rss")
+    assert is_safe is False
+
+    # Dangerous schemes
+    is_safe, _ = is_safe_public_feed_url("file:///etc/passwd")
+    assert is_safe is False
+    is_safe, _ = is_safe_public_feed_url("ftp://ftp.example.com/rss.xml")
+    assert is_safe is False
+    is_safe, _ = is_safe_public_feed_url("javascript:alert(1)")
+    assert is_safe is False
+    is_safe, _ = is_safe_public_feed_url("")
+    assert is_safe is False
+
+    # Valid public feed URL
+    is_safe, _ = is_safe_public_feed_url("https://weworkremotely.com/categories/remote-programming-jobs.rss")
+    assert is_safe is True
+
+
+@pytest.mark.asyncio
+async def test_internships_india_and_remote_filtering():
+    """Verify location='india' filters for Indian tech hubs and remote roles while excluding foreign onsite roles."""
+    db = TestSession()
+    try:
+        user = User(email="india_filter_user@example.com", is_active=True)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        uid = user.id
+
+        now = datetime.now(timezone.utc)
+        listing_blr = InternshipListing(
+            source_type="greenhouse",
+            source_board_or_site="groww",
+            source_job_id="blr_101",
+            company_name="Groww",
+            title="Software Engineering Intern",
+            description_html="<p>Bangalore office</p>",
+            description_text="Bangalore office",
+            location="Bangalore, Karnataka, India",
+            work_mode="onsite",
+            is_internship=True,
+            original_url="https://groww.in/careers/101",
+            first_seen_at=now,
+            last_seen_at=now,
+            last_verified_at=now,
+            is_stale=False,
+            is_active=True,
+        )
+        listing_remote = InternshipListing(
+            source_type="greenhouse",
+            source_board_or_site="gitlab",
+            source_job_id="rem_102",
+            company_name="GitLab",
+            title="Backend Intern",
+            description_html="<p>Global remote</p>",
+            description_text="Global remote",
+            location="Remote, Global",
+            work_mode="remote",
+            is_internship=True,
+            original_url="https://gitlab.com/careers/102",
+            first_seen_at=now,
+            last_seen_at=now,
+            last_verified_at=now,
+            is_stale=False,
+            is_active=True,
+        )
+        listing_sf = InternshipListing(
+            source_type="greenhouse",
+            source_board_or_site="stripe",
+            source_job_id="sf_103",
+            company_name="Stripe",
+            title="Frontend Intern",
+            description_html="<p>San Francisco HQ</p>",
+            description_text="San Francisco HQ",
+            location="San Francisco, CA, USA",
+            work_mode="onsite",
+            is_internship=True,
+            original_url="https://stripe.com/careers/103",
+            first_seen_at=now,
+            last_seen_at=now,
+            last_verified_at=now,
+            is_stale=False,
+            is_active=True,
+        )
+        db.add_all([listing_blr, listing_remote, listing_sf])
+        db.commit()
+    finally:
+        db.close()
+
+    token = create_access_token({"sub": str(uid), "email": "india_filter_user@example.com"})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get("/api/internships?location=india", headers=headers)
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        company_names = [it["company_name"] for it in items]
+
+        assert "Groww" in company_names
+        assert "GitLab" in company_names
+        assert "Stripe" not in company_names
+
+
+@pytest.mark.asyncio
+async def test_internships_role_category_and_employer_filtering():
+    """Verify role_category and employer query parameters accurately filter vacancies."""
+    db = TestSession()
+    try:
+        user = User(email="role_filter_user@example.com", is_active=True)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        uid = user.id
+
+        now = datetime.now(timezone.utc)
+        listing_fe = InternshipListing(
+            source_type="greenhouse",
+            source_board_or_site="figma",
+            source_job_id="figma_fe_1",
+            company_name="Figma",
+            title="Frontend Engineer Intern",
+            description_html="<p>React and WebGL</p>",
+            description_text="React and WebGL",
+            location="Remote",
+            work_mode="remote",
+            is_internship=True,
+            required_skills_json=json.dumps(["React", "TypeScript", "CSS"]),
+            original_url="https://figma.com/careers/fe_1",
+            first_seen_at=now,
+            last_seen_at=now,
+            last_verified_at=now,
+            is_stale=False,
+            is_active=True,
+        )
+        listing_be = InternshipListing(
+            source_type="greenhouse",
+            source_board_or_site="stripe",
+            source_job_id="stripe_be_1",
+            company_name="Stripe",
+            title="Backend Infrastructure Intern",
+            description_html="<p>Distributed payment systems</p>",
+            description_text="Distributed payment systems",
+            location="Remote",
+            work_mode="remote",
+            is_internship=True,
+            required_skills_json=json.dumps(["Go", "PostgreSQL", "Docker"]),
+            original_url="https://stripe.com/careers/be_1",
+            first_seen_at=now,
+            last_seen_at=now,
+            last_verified_at=now,
+            is_stale=False,
+            is_active=True,
+        )
+        listing_ml = InternshipListing(
+            source_type="greenhouse",
+            source_board_or_site="datadog",
+            source_job_id="datadog_ml_1",
+            company_name="Datadog",
+            title="Machine Learning Research Intern",
+            description_html="<p>Time series forecasting models</p>",
+            description_text="Time series forecasting models",
+            location="Remote",
+            work_mode="remote",
+            is_internship=True,
+            required_skills_json=json.dumps(["Python", "PyTorch", "Pandas"]),
+            original_url="https://datadog.com/careers/ml_1",
+            first_seen_at=now,
+            last_seen_at=now,
+            last_verified_at=now,
+            is_stale=False,
+            is_active=True,
+        )
+        db.add_all([listing_fe, listing_be, listing_ml])
+        db.commit()
+    finally:
+        db.close()
+
+    token = create_access_token({"sub": str(uid), "email": "role_filter_user@example.com"})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Test Frontend filter
+        resp_fe = await client.get("/api/internships?role_category=frontend", headers=headers)
+        assert resp_fe.status_code == 200
+        fe_titles = [it["title"] for it in resp_fe.json()["items"]]
+        assert "Frontend Engineer Intern" in fe_titles
+        assert "Backend Infrastructure Intern" not in fe_titles
+        assert "Machine Learning Research Intern" not in fe_titles
+
+        # Test AI/ML filter
+        resp_ml = await client.get("/api/internships?role_category=ai_ml_data", headers=headers)
+        assert resp_ml.status_code == 200
+        ml_titles = [it["title"] for it in resp_ml.json()["items"]]
+        assert "Machine Learning Research Intern" in ml_titles
+        assert "Frontend Engineer Intern" not in ml_titles
+
+        # Test Employer filter
+        resp_emp = await client.get("/api/internships?employer=Figma", headers=headers)
+        assert resp_emp.status_code == 200
+        emp_companies = [it["company_name"] for it in resp_emp.json()["items"]]
+        assert "Figma" in emp_companies
+        assert "Stripe" not in emp_companies
+        assert "Datadog" not in emp_companies
+
+
+@pytest.mark.asyncio
+async def test_sources_health_taxonomy_and_disabled_indian_platforms():
+    """Verify /api/internships/sources surfaces granular health statuses and investigated Indian platforms."""
+    db = TestSession()
+    try:
+        user = User(email="sources_health_user@example.com", is_active=True)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        uid = user.id
+    finally:
+        db.close()
+
+    token = create_access_token({"sub": str(uid), "email": "sources_health_user@example.com"})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get("/api/internships/sources", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "sources" in data
+        sources = data["sources"]
+
+        # 1. Health status field exists on all sources
+        for src in sources:
+            assert "health_status" in src
+            assert "provider" in src
+
+        # 2. Investigated Indian platforms are surfaced as disabled_no_authorized_api with official portal URLs
+        disabled_sources = [s for s in sources if s.get("health_status") == "disabled_no_authorized_api"]
+        disabled_labels = [s["label"].lower() for s in disabled_sources]
+
+        assert any("internshala" in lbl for lbl in disabled_labels)
+        assert any("naukri" in lbl for lbl in disabled_labels)
+        assert any("unstop" in lbl for lbl in disabled_labels)
+
+        for ds in disabled_sources:
+            assert ds["authorized_api_available"] is False
+            assert ds["official_portal_url"].startswith("https://")
+            assert "api" in ds["status_message"].lower()
+

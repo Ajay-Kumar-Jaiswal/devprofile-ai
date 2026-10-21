@@ -21,6 +21,8 @@ import {
   Check,
   ShieldCheck,
   Globe,
+  Building2,
+  Filter,
 } from 'lucide-react';
 import {
   getInternships,
@@ -29,8 +31,11 @@ import {
   unsaveInternship,
   syncInternships,
   getInternshipSources,
+  getGitHubLinkUrl,
   ApiError,
 } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { GithubIcon } from '../components/GithubIcon';
 import type {
   InternshipListingSummaryOut,
   InternshipDetailOut,
@@ -39,6 +44,8 @@ import type {
 } from '../types/api';
 
 export const InternshipsPage: React.FC = () => {
+  const { user } = useAuth();
+
   // State
   const [listings, setListings] = useState<InternshipListingSummaryOut[]>([]);
   const [total, setTotal] = useState<number>(0);
@@ -49,7 +56,10 @@ export const InternshipsPage: React.FC = () => {
   // Filters & Tabs
   const [activeTab, setActiveTab] = useState<'all' | 'saved'>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [locationScope, setLocationScope] = useState<string>('all');
   const [workMode, setWorkMode] = useState<string>('all');
+  const [roleCategory, setRoleCategory] = useState<string>('');
+  const [employerFilter, setEmployerFilter] = useState<string>('');
   const [minScore, setMinScore] = useState<number>(0);
   const [sortBy, setSortBy] = useState<'match' | 'recent' | 'company'>('match');
 
@@ -58,6 +68,10 @@ export const InternshipsPage: React.FC = () => {
   const [showSourcesPanel, setShowSourcesPanel] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+
+  // GitHub Account Linking state
+  const [isLinkingGitHub, setIsLinkingGitHub] = useState<boolean>(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   // Selected Detail Modal
   const [selectedListingId, setSelectedListingId] = useState<number | null>(null);
@@ -75,7 +89,10 @@ export const InternshipsPage: React.FC = () => {
     try {
       const params: InternshipQueryParams = {
         search: searchTerm.trim() || undefined,
+        location: locationScope !== 'all' ? locationScope : undefined,
         work_mode: workMode !== 'all' ? workMode : undefined,
+        role_category: roleCategory || undefined,
+        employer: employerFilter.trim() || undefined,
         saved_only: activeTab === 'saved',
         min_score: minScore > 0 ? minScore : undefined,
         sort_by: sortBy,
@@ -95,7 +112,7 @@ export const InternshipsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [searchTerm, workMode, activeTab, minScore, sortBy]);
+  }, [searchTerm, locationScope, workMode, roleCategory, employerFilter, activeTab, minScore, sortBy]);
 
   // Initial load & search debounce
   useEffect(() => {
@@ -118,6 +135,24 @@ export const InternshipsPage: React.FC = () => {
   useEffect(() => {
     loadSources();
   }, [loadSources]);
+
+  // GitHub account linking handler
+  const handleLinkGitHub = async () => {
+    setIsLinkingGitHub(true);
+    setLinkError(null);
+    try {
+      const res = await getGitHubLinkUrl();
+      if (!res.is_configured || !res.auth_url) {
+        setLinkError(res.setup_instructions || 'GitHub OAuth is not configured on this server.');
+        return;
+      }
+      window.location.href = res.auth_url;
+    } catch (err: any) {
+      setLinkError(err?.message || 'Failed to initialize GitHub linking.');
+    } finally {
+      setIsLinkingGitHub(false);
+    }
+  };
 
   // Trigger Sync / Ingestion across official APIs
   const handleSyncSources = async () => {
@@ -246,6 +281,53 @@ export const InternshipsPage: React.FC = () => {
     }
   };
 
+  const getSourceHealthBadge = (src: { health_status?: string; listings_count: number }) => {
+    switch (src.health_status) {
+      case 'healthy_with_results':
+        return {
+          label: `Healthy (${src.listings_count} roles)`,
+          className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+        };
+      case 'healthy_empty':
+        return {
+          label: 'Active (0 roles)',
+          className: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+        };
+      case 'rate_limited':
+        return {
+          label: 'Rate Limited (429)',
+          className: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+        };
+      case 'invalid_config':
+        return {
+          label: 'Unavailable (404)',
+          className: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+        };
+      case 'disabled_no_authorized_api':
+        return {
+          label: 'No Public API',
+          className: 'bg-slate-800 text-slate-400 border-slate-700',
+        };
+      default:
+        return {
+          label: `${src.listings_count} roles`,
+          className: 'bg-slate-800 text-violet-300 border-slate-700',
+        };
+    }
+  };
+
+  const roleCategories = [
+    { id: '', label: 'All Roles' },
+    { id: 'frontend', label: 'Frontend' },
+    { id: 'backend', label: 'Backend' },
+    { id: 'fullstack', label: 'Fullstack' },
+    { id: 'ai_ml_data', label: 'AI / ML / Data' },
+    { id: 'devops_cloud', label: 'DevOps / Cloud' },
+  ];
+
+  const authorizedSources = sourcesData?.sources.filter((s) => s.authorized_api_available !== false) || [];
+  const investigatedPlatforms = sourcesData?.sources.filter((s) => s.authorized_api_available === false) || [];
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* 1. Header Banner */}
@@ -296,8 +378,48 @@ export const InternshipsPage: React.FC = () => {
         </div>
       )}
 
-      {/* 2. Unanalyzed Profile Banner (if candidate has not run analysis yet) */}
-      {!hasProfileAnalysis && (
+      {/* 2. GitHub Account Linking Banner (for unlinked users) */}
+      {user && !user.connected_github && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-violet-950/40 via-navy-900 to-indigo-950/40 border border-violet-500/30 text-xs text-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-card animate-fadeIn">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 rounded-xl bg-violet-600/20 border border-violet-500/30 text-violet-400 shrink-0 mt-0.5 shadow-glow-violet">
+              <GithubIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="font-bold text-white text-sm block">Connect Your GitHub Account</span>
+              <p className="text-slate-300 text-xs mt-0.5 max-w-xl leading-relaxed">
+                Link your GitHub identity to enable automated repo skill extraction, candidate match scoring against live vacancies, and AI recruiter fit analysis.
+              </p>
+              {linkError && (
+                <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1 font-semibold">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{linkError}</span>
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            <Link
+              to="/settings"
+              className="px-3.5 py-2 rounded-xl bg-navy-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold transition-colors"
+            >
+              Settings
+            </Link>
+            <button
+              type="button"
+              onClick={handleLinkGitHub}
+              disabled={isLinkingGitHub}
+              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-subtle hover:shadow-glow-violet flex items-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
+            >
+              <GithubIcon className="w-4 h-4" />
+              <span>{isLinkingGitHub ? 'Connecting...' : 'Link GitHub Account'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Unanalyzed Profile Banner (if candidate has linked account but no analysis yet) */}
+      {(!hasProfileAnalysis && (!user || user.connected_github)) && (
         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start gap-2.5">
             <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
@@ -317,9 +439,9 @@ export const InternshipsPage: React.FC = () => {
         </div>
       )}
 
-      {/* 3. Configured Sources Overview Panel (Collapsible) */}
+      {/* 4. Configured Sources Overview Panel (Collapsible) */}
       {showSourcesPanel && (
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-3 animate-fadeIn">
+        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4 animate-fadeIn">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -337,26 +459,82 @@ export const InternshipsPage: React.FC = () => {
             Vacancies are fetched exclusively via official public endpoints. No scraping or automation is used. Configure employer boards via <code className="text-violet-300 font-mono">INTERNSHIP_GREENHOUSE_BOARDS</code>, <code className="text-violet-300 font-mono">INTERNSHIP_LEVER_SITES</code>, or <code className="text-violet-300 font-mono">INTERNSHIP_RSS_FEEDS</code> in <code className="text-slate-300 font-mono">backend/.env</code>.
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
-            {sourcesData?.sources.map((src, i) => (
-              <div
-                key={i}
-                className="p-3 rounded-xl bg-navy-900 border border-slate-800/80 flex items-center justify-between text-xs"
-              >
-                <div>
-                  <span className="font-semibold text-slate-200 block">{src.label}</span>
-                  <span className="text-[11px] text-slate-400 font-mono uppercase">{src.provider}</span>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-violet-300 border border-slate-700">
-                  {src.listings_count} roles
-                </span>
-              </div>
-            ))}
+          {/* Section A: Live Authorized API Sources */}
+          <div className="space-y-2">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <span>Live ATS Ingestion ({authorizedSources.length} sources)</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+              {authorizedSources.map((src, i) => {
+                const health = getSourceHealthBadge(src);
+                return (
+                  <div
+                    key={i}
+                    className="p-3 rounded-xl bg-navy-900 border border-slate-800/80 flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <span className="font-semibold text-slate-200 block">{src.label}</span>
+                      <span className="text-[11px] text-slate-400 font-mono uppercase">{src.provider}</span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${health.className}`}>
+                      {health.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
+
+          {/* Section B: Investigated Indian Student Platforms (No Authorized API) */}
+          {investigatedPlatforms.length > 0 && (
+            <div className="pt-2 border-t border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5" />
+                  <span>Investigated Indian Platforms (Zero-Scraping Policy)</span>
+                </span>
+                <span className="text-[10px] text-slate-400">Direct Search Links Only</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                DevProfile AI strictly complies with terms of service and zero-scraping principles. Because Internshala, Naukri, and Unstop do not provide public developer APIs or open feeds, automated scraping is prohibited. Direct external search links to their verified portals are provided below:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                {investigatedPlatforms.map((src, i) => (
+                  <div
+                    key={i}
+                    className="p-3 rounded-xl bg-navy-950/80 border border-slate-800 flex flex-col justify-between gap-2.5 text-xs"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-slate-200">{src.label}</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                          External Only
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+                        {src.status_message || 'No public API available.'}
+                      </p>
+                    </div>
+                    {src.official_portal_url && (
+                      <a
+                        href={src.official_portal_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-400 hover:text-violet-300 transition-colors"
+                      >
+                        <span>Open {src.label}</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* 4. Controls: Tabs, Search, and Filters */}
+      {/* 5. Controls: Tabs, Search, and Filters */}
       <div className="space-y-3.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Tabs: All Matches vs Saved Roles */}
@@ -414,39 +592,96 @@ export const InternshipsPage: React.FC = () => {
             )}
           </div>
 
+          {/* Location Scope Filter */}
+          <select
+            value={locationScope}
+            onChange={(e) => setLocationScope(e.target.value)}
+            className="w-full md:w-44 h-10 px-3 rounded-xl bg-navy-900 border border-slate-700/80 text-xs text-slate-300 focus:outline-none focus:border-violet-500 cursor-pointer"
+          >
+            <option value="all">All Locations</option>
+            <option value="india">India &amp; Remote</option>
+            <option value="remote">Remote Only</option>
+          </select>
+
           {/* Work Mode Filter */}
           <select
             value={workMode}
             onChange={(e) => setWorkMode(e.target.value)}
-            className="w-full md:w-36 h-10 px-3 rounded-xl bg-navy-900 border border-slate-700/80 text-xs text-slate-300 focus:outline-none focus:border-violet-500 cursor-pointer"
+            className="w-full md:w-32 h-10 px-3 rounded-xl bg-navy-900 border border-slate-700/80 text-xs text-slate-300 focus:outline-none focus:border-violet-500 cursor-pointer"
           >
             <option value="all">All Modes</option>
-            <option value="remote">Remote Only</option>
+            <option value="remote">Remote</option>
             <option value="hybrid">Hybrid</option>
             <option value="onsite">Onsite</option>
           </select>
+
+          {/* Employer Filter */}
+          <div className="relative w-full md:w-36">
+            <Building2 className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-3.5 pointer-events-none" />
+            <input
+              type="text"
+              value={employerFilter}
+              onChange={(e) => setEmployerFilter(e.target.value)}
+              placeholder="Employer..."
+              className="w-full h-10 pl-8 pr-7 rounded-xl bg-navy-900 border border-slate-700/80 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+            />
+            {employerFilter && (
+              <button
+                type="button"
+                onClick={() => setEmployerFilter('')}
+                className="absolute right-2.5 top-3 text-slate-400 hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
 
           {/* Match Score Filter */}
           <select
             value={minScore}
             onChange={(e) => setMinScore(Number(e.target.value))}
-            className="w-full md:w-40 h-10 px-3 rounded-xl bg-navy-900 border border-slate-700/80 text-xs text-slate-300 focus:outline-none focus:border-violet-500 cursor-pointer"
+            className="w-full md:w-36 h-10 px-3 rounded-xl bg-navy-900 border border-slate-700/80 text-xs text-slate-300 focus:outline-none focus:border-violet-500 cursor-pointer"
           >
-            <option value={0}>All Match Scores</option>
-            <option value={50}>Good Match (&ge;50%)</option>
-            <option value={75}>Strong Match (&ge;75%)</option>
+            <option value={0}>All Scores</option>
+            <option value={50}>Good (&ge;50%)</option>
+            <option value={75}>Strong (&ge;75%)</option>
           </select>
 
           {/* Sort By */}
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="w-full md:w-36 h-10 px-3 rounded-xl bg-navy-900 border border-slate-700/80 text-xs text-slate-300 focus:outline-none focus:border-violet-500 cursor-pointer"
+            className="w-full md:w-32 h-10 px-3 rounded-xl bg-navy-900 border border-slate-700/80 text-xs text-slate-300 focus:outline-none focus:border-violet-500 cursor-pointer"
           >
             <option value="match">Best Match</option>
             <option value="recent">Most Recent</option>
             <option value="company">Company</option>
           </select>
+        </div>
+
+        {/* Role Category Pills */}
+        <div className="flex items-center gap-1.5 flex-wrap pt-1">
+          <span className="text-[11px] font-semibold text-slate-400 mr-1 flex items-center gap-1">
+            <Filter className="w-3 h-3 text-violet-400" />
+            <span>Category:</span>
+          </span>
+          {roleCategories.map((cat) => {
+            const isSelected = roleCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setRoleCategory(isSelected && cat.id !== '' ? '' : cat.id)}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-violet-600 text-white shadow-subtle border border-violet-500'
+                    : 'bg-navy-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+                }`}
+              >
+                {cat.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -495,11 +730,14 @@ export const InternshipsPage: React.FC = () => {
               ? 'No active listings have been ingested yet. Click "Refresh Matches" above to poll configured Greenhouse and Lever boards.'
               : 'No vacancies matched your current search and filter criteria. Try clearing search keywords or lowering the score threshold.'}
           </p>
-          {(searchTerm || workMode !== 'all' || minScore > 0) && (
+          {(searchTerm || locationScope !== 'all' || workMode !== 'all' || roleCategory !== '' || employerFilter !== '' || minScore > 0) && (
             <button
               onClick={() => {
                 setSearchTerm('');
+                setLocationScope('all');
                 setWorkMode('all');
+                setRoleCategory('');
+                setEmployerFilter('');
                 setMinScore(0);
               }}
               className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold transition-colors"

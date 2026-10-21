@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.db_models import User, ConnectedGitHubAccount
+from app.db_models import User, ConnectedGitHubAccount, OAuthState
 from app.dependencies import get_current_user
 from app.saas_models import (
     UserRegisterRequest,
@@ -17,6 +17,7 @@ from app.saas_models import (
     ConnectedGitHubOut,
     GitHubOAuthUrlResponse,
     GitHubOAuthCallbackRequest,
+    GitHubLinkCallbackRequest,
     ForgotPasswordRequest,
     ForgotPasswordResponse,
     PasswordChangeRequest,
@@ -392,15 +393,66 @@ async def get_github_oauth_url(db: Session = Depends(get_db)):
     )
 
 
+@router.get(
+    "/github/link-url",
+    response_model=GitHubOAuthUrlResponse,
+    summary="Generate GitHub OAuth authorization URL specifically for linking an authenticated user's account",
+)
+async def get_github_link_url(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Dedicated endpoint for authenticated users initiating GitHub account linking.
+    Generates a secure state parameter bound to current_user.id.
+    """
+    client_id = settings.GITHUB_CLIENT_ID
+    client_secret = settings.GITHUB_CLIENT_SECRET
+
+    if not client_id or not client_id.strip() or not client_secret or not client_secret.strip():
+        return GitHubOAuthUrlResponse(
+            is_configured=False,
+            setup_instructions=(
+                "GitHub OAuth requires configuring GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET in backend/.env. "
+                "Create a GitHub OAuth App in GitHub Settings -> Developer settings -> OAuth Apps with "
+                f"Authorization callback URL: {settings.github_callback_url}."
+            ),
+        )
+
+    if current_user.connected_github:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Your account already has a connected GitHub identity (@{current_user.connected_github.github_login}). Please disconnect it first if you wish to connect a different account.",
+        )
+
+    # Bind state token specifically to current_user.id for CSRF and session-ownership verification
+    state = generate_oauth_state(db, user_id=current_user.id)
+    redirect_uri = settings.github_callback_url
+    auth_url = (
+        f"https://github.com/login/oauth/authorize"
+        f"?client_id={client_id}"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope=read:user,user:email"
+        f"&state={state}"
+    )
+
+    return GitHubOAuthUrlResponse(
+        is_configured=True,
+        auth_url=auth_url,
+        client_id=client_id,
+    )
+
+
 async def _process_github_oauth_code(
     code: str,
     state: str,
     db: Session,
     response: Response,
+    expected_user_id: int = None,
 ) -> tuple[User, str]:
     """
     Validates OAuth state, exchanges authorization code for access token,
-    fetches GitHub profile, and provisions or updates user account.
+    fetches GitHub profile, and provisions, links, or updates user account.
     """
     client_id = settings.GITHUB_CLIENT_ID
     client_secret = settings.GITHUB_CLIENT_SECRET
@@ -416,8 +468,16 @@ async def _process_github_oauth_code(
     if not state_record:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired OAuth state parameter. Please retry the GitHub login.",
+            detail="Invalid or expired OAuth state parameter. Please retry the GitHub authorization.",
         )
+
+    # Verify state ownership if expected_user_id was supplied
+    if expected_user_id is not None and state_record.user_id is not None:
+        if state_record.user_id != expected_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="OAuth state was initiated by a different user session. Action rejected for security.",
+            )
 
     # 2. Exchange authorization code for GitHub access token
     async with httpx.AsyncClient(timeout=15.0) as client:
@@ -511,6 +571,57 @@ async def _process_github_oauth_code(
         .first()
     )
 
+    # Branch A: Account Linking Flow (initiated by an authenticated user)
+    linking_user_id = expected_user_id or state_record.user_id
+    if linking_user_id is not None:
+        user = db.query(User).filter(User.id == linking_user_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User account for linking not found.",
+            )
+
+        if user.connected_github:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Your account already has a connected GitHub identity (@{user.connected_github.github_login}).",
+            )
+
+        # Reject if this GitHub identity is already linked to a DIFFERENT user
+        if existing_connection and existing_connection.user_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"GitHub account @{gh_login} is already linked to another DevProfile AI user account.",
+            )
+
+        if existing_connection and existing_connection.user_id == user.id:
+            existing_connection.github_login = gh_login
+            existing_connection.avatar_url = gh_avatar
+            existing_connection.html_url = gh_html
+        else:
+            conn = ConnectedGitHubAccount(
+                user_id=user.id,
+                github_user_id=gh_numeric_id,
+                github_login=gh_login,
+                avatar_url=gh_avatar,
+                html_url=gh_html,
+            )
+            db.add(conn)
+
+        # Set default profile username if not currently set
+        if not user.default_profile_username:
+            user.default_profile_username = gh_login
+
+        user.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(user)
+
+        token = create_access_token({"sub": str(user.id), "email": user.email})
+        set_auth_cookie(response, token)
+        logger.info(f"User #{user.id} successfully linked GitHub identity @{gh_login}.")
+        return user, token
+
+    # Branch B: Standard Login / Registration Flow
     if existing_connection:
         user = existing_connection.user
         # Update username in case it changed on GitHub
@@ -581,6 +692,36 @@ async def github_oauth_callback(
     )
 
 
+@router.post(
+    "/github/link-callback",
+    response_model=AuthResponse,
+    summary="Handle GitHub OAuth code exchange to link GitHub account to authenticated user",
+)
+async def github_link_callback(
+    body: GitHubLinkCallbackRequest,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Dedicated endpoint for authenticated users linking a GitHub identity.
+    Enforces state ownership and ensures duplicate user accounts are never created.
+    """
+    user, token = await _process_github_oauth_code(
+        code=body.code,
+        state=body.state,
+        db=db,
+        response=response,
+        expected_user_id=current_user.id,
+    )
+    gh_login = user.connected_github.github_login if user.connected_github else user.default_profile_username or "developer"
+    return AuthResponse(
+        user=user_to_out(user),
+        token=token,
+        message=f"Successfully linked GitHub account @{gh_login}.",
+    )
+
+
 @router.get(
     "/github/callback",
     summary="Handle GitHub OAuth callback via browser GET redirect",
@@ -595,20 +736,28 @@ async def github_oauth_callback_get(
     """
     Direct browser redirect flow: Handles case where GitHub OAuth App or GITHUB_CALLBACK_URL
     is pointed directly to http://localhost:8000/api/auth/github/callback via browser GET.
-    Authenticates session, sets cookie, and redirects user to frontend dashboard.
+    Authenticates session, sets cookie, and redirects user to frontend dashboard or settings.
     """
+    is_linking = False
+    if state:
+        state_obj = db.query(OAuthState).filter(OAuthState.state_token == state).first()
+        if state_obj and state_obj.user_id is not None:
+            is_linking = True
+
     if error:
         err_msg = error_description or error or "GitHub OAuth authorization was canceled or denied."
         logger.warning(f"GitHub OAuth error query received: {error} - {error_description}")
+        target = f"{settings.FRONTEND_ORIGIN}/settings?github_error={err_msg}" if is_linking else f"{settings.FRONTEND_ORIGIN}/login?oauth_error={err_msg}"
         return RedirectResponse(
-            url=f"{settings.FRONTEND_ORIGIN}/login?oauth_error={err_msg}",
+            url=target,
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
     if not code or not state:
         logger.warning("GitHub OAuth callback GET request missing code or state parameter.")
+        target = f"{settings.FRONTEND_ORIGIN}/settings?github_error=missing_code_or_state" if is_linking else f"{settings.FRONTEND_ORIGIN}/login?oauth_error=missing_code_or_state"
         return RedirectResponse(
-            url=f"{settings.FRONTEND_ORIGIN}/login?oauth_error=missing_code_or_state",
+            url=target,
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -625,18 +774,23 @@ async def github_oauth_callback_get(
             response=redirect_res,
         )
         gh_login = user.connected_github.github_login if user.connected_github else user.default_profile_username or ""
-        redirect_res.headers["Location"] = f"{settings.FRONTEND_ORIGIN}/dashboard?analyze={gh_login}"
+        if is_linking:
+            redirect_res.headers["Location"] = f"{settings.FRONTEND_ORIGIN}/settings?github_linked=success&login={gh_login}"
+        else:
+            redirect_res.headers["Location"] = f"{settings.FRONTEND_ORIGIN}/dashboard?analyze={gh_login}"
         return redirect_res
     except HTTPException as exc:
         logger.error(f"GitHub OAuth GET callback exchange failed: {exc.detail}")
+        target = f"{settings.FRONTEND_ORIGIN}/settings?github_error={exc.detail}" if is_linking else f"{settings.FRONTEND_ORIGIN}/login?oauth_error={exc.detail}"
         return RedirectResponse(
-            url=f"{settings.FRONTEND_ORIGIN}/login?oauth_error={exc.detail}",
+            url=target,
             status_code=status.HTTP_303_SEE_OTHER,
         )
     except Exception as exc:
         logger.error(f"Unexpected error in GitHub OAuth GET callback: {exc}", exc_info=True)
+        target = f"{settings.FRONTEND_ORIGIN}/settings?github_error=oauth_internal_error" if is_linking else f"{settings.FRONTEND_ORIGIN}/login?oauth_error=oauth_internal_error"
         return RedirectResponse(
-            url=f"{settings.FRONTEND_ORIGIN}/login?oauth_error=oauth_internal_error",
+            url=target,
             status_code=status.HTTP_303_SEE_OTHER,
         )
 

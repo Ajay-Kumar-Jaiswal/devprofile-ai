@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   updateDefaultProfile,
   disconnectGitHub,
+  getGitHubLinkUrl,
   changePassword,
   setupCredentials,
   ApiError,
@@ -37,6 +38,11 @@ export const SettingsPage: React.FC = () => {
   const [handleSuccess, setHandleSuccess] = useState<string | null>(null);
   const [handleError, setHandleError] = useState<string | null>(null);
 
+  // Link GitHub state
+  const [isLinkingGitHub, setIsLinkingGitHub] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkSuccess, setLinkSuccess] = useState<string | null>(null);
+
   // Disconnect GitHub state
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
@@ -67,6 +73,51 @@ export const SettingsPage: React.FC = () => {
   React.useEffect(() => {
     setDefaultHandle(user?.default_profile_username || '');
   }, [user?.default_profile_username]);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const linked = params.get('github_linked');
+    const login = params.get('login');
+    const ghErr = params.get('github_error');
+
+    if (linked === 'success') {
+      setLinkSuccess(login ? `Successfully linked GitHub account @${login}.` : 'GitHub account linked successfully.');
+      refreshUser();
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (ghErr) {
+      setLinkError(decodeURIComponent(ghErr));
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [refreshUser]);
+
+  const handleLinkGitHub = async () => {
+    if (isLinkingGitHub) return;
+    setIsLinkingGitHub(true);
+    setLinkError(null);
+    setLinkSuccess(null);
+
+    try {
+      const res = await getGitHubLinkUrl();
+      if (!res.is_configured || !res.auth_url) {
+        setLinkError(
+          res.setup_instructions ||
+            'GitHub OAuth is not currently configured on this environment. Please configure GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET in backend/.env.'
+        );
+        return;
+      }
+      sessionStorage.setItem('oauth_action', 'link');
+      sessionStorage.setItem('oauth_return_url', window.location.pathname);
+      window.location.href = res.auth_url;
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        setLinkError(err.detail);
+      } else {
+        setLinkError(err?.message || 'Failed to initiate GitHub account linking.');
+      }
+    } finally {
+      setIsLinkingGitHub(false);
+    }
+  };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -308,6 +359,21 @@ export const SettingsPage: React.FC = () => {
             )}
           </div>
 
+          {/* Linking Feedback Notifications */}
+          {linkSuccess && (
+            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-2 animate-fadeIn">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{linkSuccess}</span>
+            </div>
+          )}
+
+          {linkError && (
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-center gap-2 animate-fadeIn">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span className="leading-relaxed">{linkError}</span>
+            </div>
+          )}
+
           {disconnectError && (
             <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 space-y-2.5">
               <div className="flex items-center gap-2">
@@ -404,9 +470,35 @@ export const SettingsPage: React.FC = () => {
               </button>
             </div>
           ) : (
-            <p className="text-xs text-slate-400 leading-relaxed">
-              No GitHub account is currently linked. You can sign in using GitHub OAuth anytime to link your verified identity.
-            </p>
+            <div className="p-5 rounded-xl bg-navy-900 border border-slate-800 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <span className="font-semibold text-white text-sm block">Connect Your GitHub Account</span>
+                  <p className="text-xs text-slate-400 leading-relaxed max-w-xl">
+                    Link your verified GitHub profile to unlock automated portfolio indexing, repository sync, and personalized tech internship matches based on your actual repositories.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleLinkGitHub}
+                  disabled={isLinkingGitHub}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs transition-all shadow-subtle hover:shadow-glow-violet cursor-pointer disabled:opacity-50 whitespace-nowrap self-start sm:self-center"
+                >
+                  {isLinkingGitHub ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Connecting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <GithubIcon className="w-4 h-4 text-white" />
+                      <span>Link GitHub Account</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           )}
         </div>
 

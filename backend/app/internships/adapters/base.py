@@ -32,6 +32,28 @@ class RawListing:
 class BaseJobSourceAdapter(ABC):
     """Abstract interface for permitted job source adapters."""
 
+    def __init__(self):
+        self._status_cache: Dict[str, Dict[str, Any]] = {}
+
+    def get_source_status(self, identifier: str) -> Dict[str, Any]:
+        key = identifier.lower().strip()
+        return self._status_cache.get(
+            key,
+            {
+                "health_status": "configured",
+                "status_message": "Configured in environment; not yet checked.",
+                "last_checked_at": None,
+            },
+        )
+
+    def record_status(self, identifier: str, health_status: str, message: str) -> None:
+        key = identifier.lower().strip()
+        self._status_cache[key] = {
+            "health_status": health_status,
+            "status_message": message,
+            "last_checked_at": datetime.now(),
+        }
+
     @property
     @abstractmethod
     def provider_name(self) -> str:

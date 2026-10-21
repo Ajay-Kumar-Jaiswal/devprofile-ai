@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { exchangeGitHubOAuthCode, fetchProfileAnalysis, ApiError } from '../services/api';
+import { exchangeGitHubOAuthCode, linkGitHubAccount, fetchProfileAnalysis, ApiError } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useAnalysis } from '../context/AnalysisContext';
-import { Terminal, Loader2, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
+import { Terminal, Loader2, Sparkles, AlertCircle, RefreshCw, Settings } from 'lucide-react';
 
 export const OAuthCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -15,6 +15,7 @@ export const OAuthCallbackPage: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState('Verifying GitHub authorization...');
   const [connectedUsername, setConnectedUsername] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isLinking, setIsLinking] = useState<boolean>(() => sessionStorage.getItem('oauth_action') === 'link');
 
   // Single-execution guard to prevent double-POST in React 18 StrictMode
   const hasRequestedRef = useRef<boolean>(false);
@@ -23,6 +24,8 @@ export const OAuthCallbackPage: React.FC = () => {
     const errorParam = searchParams.get('error_description') || searchParams.get('error');
     const code = searchParams.get('code');
     const state = searchParams.get('state');
+    const linkingActive = sessionStorage.getItem('oauth_action') === 'link';
+    setIsLinking(linkingActive);
 
     if (errorParam) {
       setStatusStep('error');
@@ -31,12 +34,14 @@ export const OAuthCallbackPage: React.FC = () => {
           ? 'GitHub OAuth authorization was canceled or denied.'
           : errorParam
       );
+      sessionStorage.removeItem('oauth_action');
       return;
     }
 
     if (!code || !state) {
       setStatusStep('error');
       setErrorMessage('Missing OAuth authorization code or state parameter.');
+      sessionStorage.removeItem('oauth_action');
       return;
     }
 
@@ -48,44 +53,67 @@ export const OAuthCallbackPage: React.FC = () => {
 
     const processOAuth = async () => {
       try {
-        // Step 1: Exchange code with backend
-        setStatusMessage('Authorizing GitHub identity & session...');
-        const authData = await exchangeGitHubOAuthCode(code, state);
+        let authData;
+        if (linkingActive) {
+          setStatusMessage('Linking GitHub identity to your current account...');
+          authData = await linkGitHubAccount(code, state);
+          sessionStorage.removeItem('oauth_action');
+        } else {
+          setStatusMessage('Authorizing GitHub identity & session...');
+          authData = await exchangeGitHubOAuthCode(code, state);
+        }
+
         await refreshUser();
 
         const ghLogin = authData.user.connected_github?.github_login || authData.user.default_profile_username;
-
         setConnectedUsername(ghLogin || null);
         setStatusStep('analyzing');
-        setStatusMessage(`Connected as @${ghLogin}! Launching automated profile audit & AI analysis...`);
+        setStatusMessage(
+          linkingActive
+            ? `Successfully linked @${ghLogin}! Syncing profile data...`
+            : `Connected as @${ghLogin}! Launching automated profile audit & AI analysis...`
+        );
 
-        // Step 2: Automatically trigger analysis for the connected GitHub account
+        // Automatically trigger initial analysis for the connected GitHub account
         if (ghLogin) {
           try {
             const initialResult = await fetchProfileAnalysis(ghLogin);
             saveAnalysis(initialResult);
           } catch (analysisErr) {
-            console.warn('Initial automated analysis failed, session preserved:', analysisErr);
-            // Session is preserved; user can retry on dashboard
+            console.warn('Initial automated analysis notice (session preserved):', analysisErr);
           }
         }
 
         setStatusStep('complete');
-        setStatusMessage('Analysis complete! Redirecting to dashboard...');
-        const storedRedirect = sessionStorage.getItem('auth_redirect');
-        if (storedRedirect) {
-          sessionStorage.removeItem('auth_redirect');
-        }
-        const safeDestination =
-          storedRedirect && storedRedirect.startsWith('/') && !storedRedirect.startsWith('//')
-            ? storedRedirect
-            : `/dashboard?analyze=${encodeURIComponent(ghLogin || '')}`;
+        if (linkingActive) {
+          setStatusMessage('Account successfully linked! Returning to settings...');
+          const returnUrl = sessionStorage.getItem('oauth_return_url') || '/settings';
+          sessionStorage.removeItem('oauth_return_url');
+          const dest = returnUrl.includes('?')
+            ? `${returnUrl}&github_linked=success&login=${encodeURIComponent(ghLogin || '')}`
+            : `${returnUrl}?github_linked=success&login=${encodeURIComponent(ghLogin || '')}`;
 
-        setTimeout(() => {
-          navigate(safeDestination);
-        }, 1200);
+          setTimeout(() => {
+            navigate(dest);
+          }, 1200);
+        } else {
+          setStatusMessage('Analysis complete! Redirecting to dashboard...');
+          const storedRedirect = sessionStorage.getItem('auth_redirect');
+          if (storedRedirect) {
+            sessionStorage.removeItem('auth_redirect');
+          }
+          const safeDestination =
+            storedRedirect && storedRedirect.startsWith('/') && !storedRedirect.startsWith('//')
+              ? storedRedirect
+              : `/dashboard?analyze=${encodeURIComponent(ghLogin || '')}`;
+
+          setTimeout(() => {
+            navigate(safeDestination);
+          }, 1200);
+        }
       } catch (err: any) {
         setStatusStep('error');
+        sessionStorage.removeItem('oauth_action');
         if (err instanceof ApiError) {
           setErrorMessage(err.detail);
         } else {
@@ -95,7 +123,7 @@ export const OAuthCallbackPage: React.FC = () => {
     };
 
     processOAuth();
-  }, [searchParams, navigate, refreshUser]);
+  }, [searchParams, navigate, refreshUser, saveAnalysis]);
 
   return (
     <div className="min-h-screen bg-navy-950 flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 text-slate-100 selection:bg-violet-500/30">
@@ -107,9 +135,9 @@ export const OAuthCallbackPage: React.FC = () => {
         {statusStep !== 'error' ? (
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-white tracking-tight">
-              {statusStep === 'exchanging' && 'Connecting to GitHub...'}
+              {statusStep === 'exchanging' && (isLinking ? 'Linking GitHub Account...' : 'Connecting to GitHub...')}
               {statusStep === 'analyzing' && 'Analyzing Connected Portfolio...'}
-              {statusStep === 'complete' && 'Welcome to DevProfile AI!'}
+              {statusStep === 'complete' && (isLinking ? 'Account Successfully Linked!' : 'Welcome to DevProfile AI!')}
             </h2>
 
             <div className="p-4 rounded-xl bg-navy-900 border border-slate-800 text-xs text-slate-300 space-y-3">
@@ -141,24 +169,37 @@ export const OAuthCallbackPage: React.FC = () => {
             <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs text-left flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold text-sm mb-1">Authorization Failed</p>
+                <p className="font-semibold text-sm mb-1">
+                  {isLinking ? 'Account Linking Failed' : 'Authorization Failed'}
+                </p>
                 <p className="text-[11px] text-rose-200/90 leading-relaxed">{errorMessage}</p>
               </div>
             </div>
 
             <div className="flex flex-col gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => navigate('/login')}
-                className="w-full py-2.5 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Return to Sign In</span>
-              </button>
+              {isLinking ? (
+                <button
+                  type="button"
+                  onClick={() => navigate('/settings')}
+                  className="w-full py-2.5 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>Return to Account Settings</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => navigate('/login')}
+                  className="w-full py-2.5 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Return to Sign In</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => navigate('/')}
-                className="w-full py-2 px-4 rounded-xl bg-navy-900 hover:bg-slate-800 text-slate-400 text-xs font-medium transition-colors"
+                className="w-full py-2 px-4 rounded-xl bg-navy-900 hover:bg-slate-800 text-slate-400 text-xs font-medium transition-colors cursor-pointer"
               >
                 Go to Public Demo
               </button>

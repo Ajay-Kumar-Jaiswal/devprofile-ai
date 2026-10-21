@@ -74,6 +74,11 @@ class InternshipSourceInfo(BaseModel):
     api_endpoint: str
     listings_count: int = 0
     last_sync_status: str = "configured"
+    health_status: str = "configured"  # configured | healthy_with_results | healthy_empty | rate_limited | invalid_config | requires_auth_or_partner | temporarily_unavailable | disabled_no_authorized_api
+    status_message: Optional[str] = None
+    last_checked_at: Optional[datetime] = None
+    official_portal_url: Optional[str] = None
+    authorized_api_available: bool = True
 
 
 class InternshipSourcesResponse(BaseModel):

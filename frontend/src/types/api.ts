@@ -385,6 +385,11 @@ export interface InternshipSourceInfo {
   api_endpoint: string;
   listings_count: number;
   last_sync_status: string;
+  health_status?: string;
+  status_message?: string | null;
+  last_checked_at?: string | null;
+  official_portal_url?: string | null;
+  authorized_api_available?: boolean;
 }
 
 export interface InternshipSourcesResponse {
@@ -411,6 +416,8 @@ export interface InternshipQueryParams {
   saved_only?: boolean;
   include_stale?: boolean;
   min_score?: number;
+  role_category?: string;
+  employer?: string;
   sort_by?: 'match' | 'recent' | 'company';
   limit?: number;
   offset?: number;

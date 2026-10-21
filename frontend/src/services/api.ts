@@ -319,10 +319,41 @@ export async function getGitHubOAuthUrl(): Promise<GitHubOAuthUrlResponse> {
   return await res.json();
 }
 
+export async function getGitHubLinkUrl(): Promise<GitHubOAuthUrlResponse> {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/github/link-url`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
 export async function exchangeGitHubOAuthCode(code: string, state: string): Promise<AuthResponse> {
   const res = await safeFetch(`${API_BASE_URL}/api/auth/github/callback`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ code, state }),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  const data = await res.json();
+  if (data.token) {
+    setStoredToken(data.token);
+  }
+  return data;
+}
+
+export async function linkGitHubAccount(code: string, state: string): Promise<AuthResponse> {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/github/link-callback`, {
+    method: 'POST',
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ code, state }),
     credentials: 'include',
   });
@@ -522,6 +553,8 @@ export async function getInternships(params: InternshipQueryParams = {}): Promis
   if (params.saved_only) q.append('saved_only', 'true');
   if (params.include_stale) q.append('include_stale', 'true');
   if (params.min_score !== undefined) q.append('min_score', String(params.min_score));
+  if (params.role_category) q.append('role_category', params.role_category);
+  if (params.employer) q.append('employer', params.employer);
   if (params.sort_by) q.append('sort_by', params.sort_by);
   if (params.limit) q.append('limit', String(params.limit));
   if (params.offset) q.append('offset', String(params.offset));
