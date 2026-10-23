@@ -106,7 +106,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({ data }) => {
         type="button"
         onClick={handleDownloadPdf}
         disabled={isGeneratingPdf}
-        className="flex items-center gap-2 px-3.5 py-1.5 rounded-l-xl bg-violet-600 hover:bg-violet-500 text-white font-medium text-xs sm:text-sm transition-all shadow-glow-violet active:scale-95 disabled:opacity-50"
+        className="flex items-center gap-2 px-4 py-2 rounded-l-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs sm:text-sm transition-all shadow-subtle hover:shadow-glow-violet border border-violet-400/40 active:scale-[0.99] disabled:opacity-50 cursor-pointer"
         title="Download executive evaluation as a formatted PDF report"
       >
         {isGeneratingPdf ? (
@@ -121,7 +121,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({ data }) => {
           </>
         ) : (
           <>
-            <FileText className="w-4 h-4 text-violet-200" />
+            <FileText className="w-4 h-4 text-violet-100" />
             <span>Download Report (PDF)</span>
           </>
         )}
@@ -131,7 +131,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({ data }) => {
       <button
         type="button"
         onClick={() => setDropdownOpen((prev) => !prev)}
-        className="px-2 py-1.5 rounded-r-xl bg-violet-700 hover:bg-violet-600 border-l border-violet-500/40 text-white transition-colors"
+        className="px-2.5 py-2 rounded-r-xl bg-violet-700 hover:bg-violet-600 border-l border-violet-400/40 text-white transition-colors cursor-pointer"
         title="More export formats"
         aria-label="Export options"
         aria-expanded={dropdownOpen}

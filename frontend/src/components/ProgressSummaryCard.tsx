@@ -72,7 +72,7 @@ export const ProgressSummaryCard: React.FC<ProgressSummaryCardProps> = ({ userna
         <div className="w-full h-2 rounded-full bg-navy-900 border border-slate-800 overflow-hidden flex">
           <div
             style={{ width: `${resolvedPct}%` }}
-            className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
+            className="h-full bg-emerald-500 transition-all duration-500"
           />
           <div
             style={{ width: `${total > 0 ? ((openCount + recurringCount) / total) * 100 : 0}%` }}

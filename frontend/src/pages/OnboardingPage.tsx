@@ -47,7 +47,7 @@ export const OnboardingPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-navy-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-slate-100 selection:bg-violet-500/30">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-4">
-        <div className="inline-flex h-12 w-12 rounded-2xl bg-gradient-to-tr from-violet-600 via-indigo-500 to-blue-500 items-center justify-center shadow-glow-violet mx-auto">
+        <div className="inline-flex h-12 w-12 rounded-2xl bg-navy-950 border border-slate-700/80 items-center justify-center text-violet-400 shadow-subtle mx-auto">
           <Terminal className="w-6 h-6 text-white" />
         </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
@@ -98,7 +98,7 @@ export const OnboardingPage: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-2.5 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-all shadow-subtle hover:shadow-glow-violet flex items-center justify-center gap-2 disabled:opacity-60"
+              className="w-full py-2.5 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-all shadow-subtle border border-violet-500/30 flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

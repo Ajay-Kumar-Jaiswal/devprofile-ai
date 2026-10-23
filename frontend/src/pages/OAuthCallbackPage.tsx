@@ -128,7 +128,7 @@ export const OAuthCallbackPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-navy-950 flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 text-slate-100 selection:bg-violet-500/30">
       <div className="max-w-md w-full glass-panel p-8 rounded-2xl border border-slate-800 shadow-card text-center space-y-6">
-        <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-violet-600 via-indigo-500 to-blue-500 flex items-center justify-center shadow-glow-violet mx-auto">
+        <div className="h-12 w-12 rounded-2xl bg-navy-950 border border-slate-700/80 flex items-center justify-center text-violet-400 shadow-subtle mx-auto">
           <Terminal className="w-6 h-6 text-white" />
         </div>
 

@@ -40,11 +40,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 const AppLayout: React.FC = () => {
   return (
-    <div className="min-h-screen bg-navy-950 text-slate-100 flex flex-col selection:bg-violet-500/30 selection:text-violet-200">
+    <div className="min-h-screen bg-navy-950 text-slate-100 flex flex-col selection:bg-violet-500/30 selection:text-violet-200 w-full overflow-x-hidden">
       <Navbar />
       <AuthDrawer />
 
-      <main className="flex-1 pb-16">
+      <main className="flex-1 w-full max-w-full overflow-x-hidden">
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
@@ -96,17 +96,14 @@ const AppLayout: React.FC = () => {
         </Routes>
       </main>
 
-      <footer className="border-t border-slate-800/80 bg-navy-950 py-8 px-4 text-center text-xs text-slate-400 space-y-2">
-        <div className="flex flex-wrap items-center justify-center gap-4">
+      <footer className="border-t border-slate-800/80 bg-navy-950 py-3.5 px-4 text-center text-xs text-slate-400">
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
           <span className="font-semibold text-white">DevProfile AI</span>
           <span>&bull;</span>
           <span>Intelligent GitHub Profile &amp; Repository Analysis</span>
           <span>&bull;</span>
           <span>&copy; {new Date().getFullYear()} All rights reserved.</span>
         </div>
-        <p className="text-[11px] text-slate-400">
-          Empowering developers with actionable portfolio audits, career insights, and interview readiness.
-        </p>
       </footer>
     </div>
   );

@@ -291,7 +291,7 @@ export const InternshipsPage: React.FC = () => {
       case 'healthy_empty':
         return {
           label: 'Active (0 roles)',
-          className: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+          className: 'bg-slate-800 text-slate-300 border-slate-700',
         };
       case 'rate_limited':
         return {
@@ -328,13 +328,23 @@ export const InternshipsPage: React.FC = () => {
   const authorizedSources = sourcesData?.sources.filter((s) => s.authorized_api_available !== false) || [];
   const investigatedPlatforms = sourcesData?.sources.filter((s) => s.authorized_api_available === false) || [];
 
+  const hasActiveFilters = Boolean(
+    searchTerm ||
+    locationScope !== 'all' ||
+    workMode !== 'all' ||
+    roleCategory !== '' ||
+    employerFilter.trim() !== '' ||
+    minScore > 0 ||
+    sortBy !== 'match'
+  );
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* 1. Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 shadow-glow-violet">
+            <div className="h-9 w-9 rounded-xl bg-navy-900 border border-slate-800 flex items-center justify-center text-violet-400 shadow-subtle">
               <Briefcase className="w-5 h-5" />
             </div>
             <div>
@@ -362,7 +372,7 @@ export const InternshipsPage: React.FC = () => {
             type="button"
             onClick={handleSyncSources}
             disabled={isSyncing}
-            className="px-3.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-subtle hover:shadow-glow-violet flex items-center gap-1.5 transition-all disabled:opacity-60 cursor-pointer"
+            className="px-3.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-subtle border border-violet-500/30 flex items-center gap-1.5 transition-all disabled:opacity-60 cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
             <span>{isSyncing ? 'Syncing...' : 'Refresh Matches'}</span>
@@ -380,10 +390,10 @@ export const InternshipsPage: React.FC = () => {
 
       {/* 2. GitHub Account Linking Banner (for unlinked users) */}
       {user && !user.connected_github && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-violet-950/40 via-navy-900 to-indigo-950/40 border border-violet-500/30 text-xs text-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-card animate-fadeIn">
+        <div className="p-4 sm:p-5 rounded-2xl bg-navy-900 border border-slate-800 text-xs text-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-card animate-fadeIn">
           <div className="flex items-start gap-3">
-            <div className="p-2.5 rounded-xl bg-violet-600/20 border border-violet-500/30 text-violet-400 shrink-0 mt-0.5 shadow-glow-violet">
-              <GithubIcon className="w-5 h-5" />
+            <div className="p-2.5 rounded-xl bg-navy-950 border border-slate-800 text-violet-400 shrink-0 mt-0.5">
+              <GithubIcon className="w-5 h-5 text-white" />
             </div>
             <div>
               <span className="font-bold text-white text-sm block">Connect Your GitHub Account</span>
@@ -401,7 +411,7 @@ export const InternshipsPage: React.FC = () => {
           <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
             <Link
               to="/settings"
-              className="px-3.5 py-2 rounded-xl bg-navy-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold transition-colors"
+              className="px-3.5 py-2 rounded-xl bg-navy-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold transition-colors"
             >
               Settings
             </Link>
@@ -409,9 +419,9 @@ export const InternshipsPage: React.FC = () => {
               type="button"
               onClick={handleLinkGitHub}
               disabled={isLinkingGitHub}
-              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-subtle hover:shadow-glow-violet flex items-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-subtle border border-violet-500/30 flex items-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
             >
-              <GithubIcon className="w-4 h-4" />
+              <GithubIcon className="w-4 h-4 text-white" />
               <span>{isLinkingGitHub ? 'Connecting...' : 'Link GitHub Account'}</span>
             </button>
           </div>
@@ -683,6 +693,100 @@ export const InternshipsPage: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Active Filters Row (if any active) */}
+        {hasActiveFilters && (
+          <div className="flex items-center gap-2 flex-wrap pt-1 text-xs">
+            <span className="text-slate-500 text-[11px] font-mono uppercase tracking-wider">Active Filters:</span>
+            {searchTerm && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-900 border border-slate-800 text-slate-300 text-xs">
+                <span>Keyword: &quot;{searchTerm}&quot;</span>
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="text-slate-500 hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {locationScope !== 'all' && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-900 border border-slate-800 text-slate-300 text-xs">
+                <span>Location: {locationScope}</span>
+                <button
+                  type="button"
+                  onClick={() => setLocationScope('all')}
+                  className="text-slate-500 hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {workMode !== 'all' && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-900 border border-slate-800 text-slate-300 text-xs capitalize">
+                <span>Mode: {workMode}</span>
+                <button
+                  type="button"
+                  onClick={() => setWorkMode('all')}
+                  className="text-slate-500 hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {employerFilter && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-900 border border-slate-800 text-slate-300 text-xs">
+                <span>Employer: {employerFilter}</span>
+                <button
+                  type="button"
+                  onClick={() => setEmployerFilter('')}
+                  className="text-slate-500 hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {minScore > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-900 border border-slate-800 text-slate-300 text-xs font-mono">
+                <span>Score &ge; {minScore}%</span>
+                <button
+                  type="button"
+                  onClick={() => setMinScore(0)}
+                  className="text-slate-500 hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {roleCategory && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-900 border border-slate-800 text-slate-300 text-xs capitalize">
+                <span>Category: {roleCategory}</span>
+                <button
+                  type="button"
+                  onClick={() => setRoleCategory('')}
+                  className="text-slate-500 hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setLocationScope('all');
+                setWorkMode('all');
+                setRoleCategory('');
+                setEmployerFilter('');
+                setMinScore(0);
+                setSortBy('match');
+              }}
+              className="text-[11px] text-violet-400 hover:text-violet-300 font-semibold underline underline-offset-2 ml-1 cursor-pointer"
+            >
+              Reset All
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 5. Main Content: Grid of Listings */}
@@ -752,39 +856,46 @@ export const InternshipsPage: React.FC = () => {
             const salaryText = formatSalary(item);
             const matchScore = item.match?.match_score || 50;
             const fitLevel = item.match?.fit_level || 'Good Match';
+            const companyInitial = (item.company_name || 'C')[0].toUpperCase();
 
             return (
               <div
                 key={item.id}
                 onClick={() => handleOpenDetail(item.id)}
-                className="glass-panel p-5 rounded-2xl border border-slate-800/90 hover:border-violet-500/40 shadow-card hover:shadow-glow-violet transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
+                className="surface-card p-5 sm:p-6 rounded-2xl border border-slate-800/90 hover:border-slate-700 transition-all cursor-pointer flex flex-col justify-between space-y-4 group shadow-card hover:shadow-card-hover"
               >
-                {/* Header: Company, Title, Match Score, Bookmark */}
-                <div className="space-y-2">
+                {/* Header: Company, Source Pill, Match Score, Bookmark */}
+                <div className="space-y-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-violet-400 uppercase tracking-wide">
-                          {item.company_name}
-                        </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">
-                          via {item.source_type}
-                        </span>
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-navy-950 border border-slate-800 flex items-center justify-center font-bold text-xs text-violet-400 shrink-0">
+                        {companyInitial}
                       </div>
-                      <h3 className="text-base font-bold text-white group-hover:text-violet-300 transition-colors line-clamp-1">
-                        {item.title}
-                      </h3>
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-white tracking-wide">
+                            {item.company_name}
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-navy-950 text-slate-400 font-mono border border-slate-800">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span>{item.source_type} API</span>
+                          </span>
+                        </div>
+                        <h3 className="text-base font-bold text-white group-hover:text-violet-300 transition-colors line-clamp-1 tracking-tight">
+                          {item.title}
+                        </h3>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
                       {/* Match Badge */}
                       <span
                         title={fitLevel}
-                        className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1 ${getScoreBadgeClass(
+                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold border flex items-center gap-1.5 shadow-subtle ${getScoreBadgeClass(
                           matchScore
                         )}`}
                       >
-                        <Sparkles className="w-3 h-3" />
+                        <Sparkles className="w-3.5 h-3.5" />
                         <span>{matchScore}%</span>
                         <span className="hidden sm:inline font-medium text-[10px] opacity-80">&bull; {fitLevel}</span>
                       </span>
@@ -795,8 +906,8 @@ export const InternshipsPage: React.FC = () => {
                         onClick={(e) => handleToggleSave(item, e)}
                         className={`p-1.5 rounded-lg border transition-colors ${
                           item.is_saved
-                            ? 'bg-violet-600 text-white border-violet-500 shadow-glow-violet'
-                            : 'bg-navy-900 border-slate-800 text-slate-400 hover:text-white'
+                            ? 'bg-violet-600 text-white border-violet-500 shadow-subtle'
+                            : 'bg-navy-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
                         }`}
                         title={item.is_saved ? 'Remove Bookmark' : 'Save Internship'}
                       >
@@ -810,16 +921,16 @@ export const InternshipsPage: React.FC = () => {
                   </div>
 
                   {/* Metadata Row: Location, Work Mode, Salary, Duration */}
-                  <div className="flex items-center gap-2.5 flex-wrap text-xs text-slate-400 pt-0.5">
+                  <div className="flex items-center gap-2 flex-wrap text-xs text-slate-400 pt-0.5">
                     {item.location && (
-                      <span className="flex items-center gap-1 text-slate-300">
+                      <span className="inline-flex items-center gap-1 text-slate-300 bg-navy-950/80 px-2 py-1 rounded-lg border border-slate-800/80">
                         <MapPin className="w-3.5 h-3.5 text-slate-500" />
                         <span>{item.location}</span>
                       </span>
                     )}
 
                     <span
-                      className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border capitalize ${getWorkModeBadgeClass(
+                      className={`px-2 py-1 rounded-lg text-[11px] font-semibold border capitalize ${getWorkModeBadgeClass(
                         item.work_mode
                       )}`}
                     >
@@ -827,14 +938,14 @@ export const InternshipsPage: React.FC = () => {
                     </span>
 
                     {salaryText && (
-                      <span className="flex items-center gap-1 text-emerald-400 font-semibold text-[11px]">
+                      <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold text-[11px] bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
                         <DollarSign className="w-3.5 h-3.5" />
                         <span>{salaryText}</span>
                       </span>
                     )}
 
                     {item.duration && (
-                      <span className="flex items-center gap-1 text-slate-400 text-[11px]">
+                      <span className="inline-flex items-center gap-1 text-slate-400 text-[11px] bg-navy-950/80 px-2 py-1 rounded-lg border border-slate-800/80">
                         <Calendar className="w-3.5 h-3.5" />
                         <span>{item.duration}</span>
                       </span>
@@ -844,8 +955,10 @@ export const InternshipsPage: React.FC = () => {
 
                 {/* Candidate Fit Reason Snippet */}
                 {item.match?.fit_reasons && item.match.fit_reasons.length > 0 && (
-                  <p className="text-xs text-slate-300 bg-navy-900/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed">
-                    <span className="text-violet-400 font-semibold mr-1">Fit Insight:</span>
+                  <p className="text-xs text-slate-300 bg-navy-950/80 p-3 rounded-xl border border-slate-800/90 leading-relaxed">
+                    <span className="text-violet-400 font-semibold mr-1.5 font-mono text-[11px] uppercase tracking-wider">
+                      Alignment:
+                    </span>
                     {item.match.fit_reasons[0]}
                   </p>
                 )}
@@ -857,7 +970,7 @@ export const InternshipsPage: React.FC = () => {
                     {item.match?.matched_skills?.slice(0, 4).map((skill, i) => (
                       <span
                         key={i}
-                        className="px-2 py-0.5 rounded-md bg-violet-600/15 border border-violet-500/30 text-violet-300 text-[11px] font-semibold flex items-center gap-1"
+                        className="px-2 py-0.5 rounded-md bg-violet-500/10 border border-violet-500/20 text-violet-300 text-[11px] font-mono font-medium flex items-center gap-1"
                       >
                         <Check className="w-3 h-3 text-violet-400" />
                         <span>{skill}</span>
@@ -868,7 +981,7 @@ export const InternshipsPage: React.FC = () => {
                     {item.match?.not_demonstrated_skills?.slice(0, 2).map((skill, i) => (
                       <span
                         key={i}
-                        className="px-2 py-0.5 rounded-md bg-slate-800/60 border border-slate-700/60 text-slate-400 text-[11px] flex items-center gap-1"
+                        className="px-2 py-0.5 rounded-md bg-slate-800/60 border border-slate-700/60 text-slate-400 text-[11px] font-mono flex items-center gap-1"
                         title="Skill not demonstrated in your analyzed GitHub repositories"
                       >
                         <Info className="w-3 h-3 text-slate-500" />
@@ -879,8 +992,8 @@ export const InternshipsPage: React.FC = () => {
                 </div>
 
                 {/* Actions Footer */}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
-                  <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                <div className="flex items-center justify-between pt-3 border-t border-slate-800/80">
+                  <span className="text-[11px] text-slate-500 font-mono flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     <span>Verified {new Date(item.last_verified_at).toLocaleDateString()}</span>
                   </span>
@@ -889,10 +1002,10 @@ export const InternshipsPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleOpenDetail(item.id)}
-                      className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors flex items-center gap-1"
+                      className="px-3 py-1.5 rounded-xl bg-navy-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                     >
                       <span>Role Details</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
                     </button>
 
                     <a
@@ -900,7 +1013,7 @@ export const InternshipsPage: React.FC = () => {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="px-3.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold transition-all shadow-subtle hover:shadow-glow-violet flex items-center gap-1"
+                      className="px-3.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold transition-all shadow-subtle border border-violet-500/30 flex items-center gap-1.5"
                     >
                       <span>Apply Now</span>
                       <ExternalLink className="w-3 h-3" />
@@ -1161,7 +1274,7 @@ export const InternshipsPage: React.FC = () => {
                   href={detailData.application_url || detailData.original_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs sm:text-sm font-semibold transition-all shadow-subtle hover:shadow-glow-violet flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs sm:text-sm font-semibold transition-all shadow-subtle border border-violet-500/30 flex items-center gap-2 cursor-pointer"
                 >
                   <span>Apply on Employer Site</span>
                   <ExternalLink className="w-4 h-4" />

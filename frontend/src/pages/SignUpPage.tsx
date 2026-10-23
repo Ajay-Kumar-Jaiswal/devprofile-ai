@@ -115,7 +115,7 @@ export const SignUpPage: React.FC = () => {
           {/* 1. DevProfile.AI Brand Mark */}
           <div className="flex items-center justify-center gap-2.5">
             <Link to="/" className="inline-flex items-center gap-2.5 group">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-violet-600 via-indigo-500 to-blue-500 flex items-center justify-center shadow-glow-violet transition-transform group-hover:scale-105">
+              <div className="h-9 w-9 rounded-xl bg-navy-950 border border-slate-700/80 group-hover:border-violet-500/50 flex items-center justify-center text-violet-400 transition-colors shadow-subtle">
                 <Terminal className="w-4.5 h-4.5 text-white" />
               </div>
               <span className="font-extrabold text-white text-lg tracking-tight">
@@ -285,7 +285,7 @@ export const SignUpPage: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full h-10 px-4 mt-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs sm:text-sm transition-all shadow-subtle hover:shadow-glow-violet flex items-center justify-center gap-2 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-violet-500/40 cursor-pointer"
+              className="w-full h-10 px-4 mt-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs sm:text-sm transition-all shadow-subtle border border-violet-500/30 flex items-center justify-center gap-2 disabled:opacity-60 focus:outline-none focus:ring-1 focus:ring-violet-500 cursor-pointer"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

@@ -24,7 +24,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onLoadDemo }) => {
       title: 'Language & Reach Telemetry',
       desc: 'Interactive Recharts breakdown of code distribution and star/fork traction.',
       icon: BarChart2,
-      color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+      color: 'text-violet-400 bg-violet-500/10 border-violet-500/20',
     },
     {
       title: 'Repository Hygiene Checklist',
@@ -69,7 +69,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onLoadDemo }) => {
       </div>
 
       {/* Demo Callout banner */}
-      <div className="mt-8 p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-violet-950/40 via-navy-900 to-indigo-950/40 border border-violet-500/30 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-card">
+      <div className="mt-8 p-6 sm:p-8 rounded-2xl bg-navy-900 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-card">
         <div className="space-y-1 text-center sm:text-left">
           <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-400 uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5" />
@@ -85,7 +85,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onLoadDemo }) => {
 
         <button
           onClick={onLoadDemo}
-          className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs sm:text-sm transition-all shadow-glow-violet active:scale-95"
+          className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs sm:text-sm transition-all shadow-subtle border border-violet-500/30 active:scale-[0.99]"
         >
           <span>Explore Demo Profile</span>
           <ArrowRight className="w-4 h-4" />

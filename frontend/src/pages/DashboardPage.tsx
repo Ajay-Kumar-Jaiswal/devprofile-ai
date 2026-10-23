@@ -3,14 +3,15 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAnalysis } from '../context/AnalysisContext';
 import { HeroSection } from '../components/HeroSection';
-import { ProfileHeader } from '../components/ProfileHeader';
-import { StatsGrid } from '../components/StatsGrid';
+import { AuditHeader } from '../components/AuditHeader';
 import { PortfolioScoreCard } from '../components/PortfolioScoreCard';
-import { AIAnalysisSection } from '../components/AIAnalysisSection';
 import { TopImprovements } from '../components/TopImprovements';
+import { AuditRepositoryEvidence } from '../components/AuditRepositoryEvidence';
+import { VisualAnalytics } from '../components/VisualAnalytics';
+import { AuditAiSynthesisSection } from '../components/AuditAiSynthesisSection';
+import { AIAnalysisSection } from '../components/AIAnalysisSection';
 import { ProgressSummaryCard } from '../components/ProgressSummaryCard';
 import { QuickComparisonBanner } from '../components/QuickComparisonBanner';
-import { VisualAnalytics } from '../components/VisualAnalytics';
 import { RepoQualityChecklist } from '../components/RepoQualityChecklist';
 import { RepositoryList } from '../components/RepositoryList';
 import { RecommendationsSection } from '../components/RecommendationsSection';
@@ -353,7 +354,7 @@ export const DashboardPage: React.FC = () => {
       {(!analysisData || isSearchOpen) && (
         <div className="relative animate-fadeIn">
           {analysisData && isSearchOpen && (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 flex justify-end">
+            <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 flex justify-end">
               <button
                 type="button"
                 onClick={() => setIsSearchOpen(false)}
@@ -402,26 +403,43 @@ export const DashboardPage: React.FC = () => {
 
       {/* Loaded Analysis Dashboard */}
       {!isLoading && analysisData && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 animate-fadeIn">
+        <div className="max-w-[1360px] w-full mx-auto px-4 sm:px-6 lg:px-8 space-y-5 animate-fadeIn">
+          {/* Page Header: DevProfile AI / Overview breadcrumb + Subtitle + Download Report */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 pb-2 border-b border-slate-800">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-mono text-slate-400">
+                <span className="text-white font-bold tracking-tight">DevProfile AI</span>
+                <span>/</span>
+                <span className="text-violet-400 font-semibold">Overview</span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                A data-driven analysis of your GitHub portfolio
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <ExportButton data={analysisData} />
+            </div>
+          </div>
+
           {/* Top Action Bar: User identifier, Primary Navigation Tabs, & Actions */}
-          <div className="sticky top-16 z-30 py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 bg-navy-950/90 backdrop-blur-md border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-4">
+          <div className="sticky top-16 z-30 py-2.5 bg-navy-950/90 backdrop-blur-md border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
             {/* Profile Pill & Demo Badge */}
-            <div className="flex items-center gap-2 overflow-x-auto py-1 text-xs">
-              <span className="font-mono font-bold text-white px-2.5 py-1 rounded-lg bg-navy-900 border border-slate-700/80">
+            <div className="flex items-center gap-2 overflow-x-auto py-1 text-xs max-w-full min-w-0">
+              <span className="font-mono font-bold text-white px-2.5 py-1 rounded-lg bg-navy-900 border border-slate-800 shrink-0">
                 @{analysisData.username}
               </span>
 
               {analysisData.is_demo_data ? (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-300 border border-amber-500/30 shrink-0">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/30 shrink-0">
                   Offline Demo Profile
                 </span>
               ) : isConnectedAccount ? (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 shrink-0">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0">
                   <ShieldCheck className="w-3 h-3 text-emerald-400" />
                   <span>Connected Account</span>
                 </span>
               ) : (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1 shrink-0">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider bg-navy-900 text-slate-300 border border-slate-800 flex items-center gap-1 shrink-0">
                   <Globe className="w-3 h-3 text-slate-400" />
                   <span>Public Profile Analysis</span>
                 </span>
@@ -429,14 +447,14 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             {/* Primary Navigation Tabs */}
-            <div className="flex items-center gap-1 overflow-x-auto py-1 text-xs bg-navy-900/90 p-1 rounded-xl border border-slate-800/80">
+            <div className="flex items-center gap-1 overflow-x-auto py-1 text-xs bg-navy-900 p-1 rounded-xl border border-slate-800 max-w-full min-w-0">
               <button
                 type="button"
                 onClick={() => setActiveTab('overview')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
                   activeTab === 'overview'
-                    ? 'bg-violet-600 text-white shadow-subtle'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    ? 'bg-violet-900/90 text-violet-100 border border-violet-500/50 font-semibold shadow-subtle'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
@@ -448,8 +466,8 @@ export const DashboardPage: React.FC = () => {
                 onClick={() => setActiveTab('ai')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
                   activeTab === 'ai'
-                    ? 'bg-violet-600 text-white shadow-subtle'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    ? 'bg-violet-900/90 text-violet-100 border border-violet-500/50 font-semibold shadow-subtle'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5 text-violet-400" />
@@ -461,8 +479,8 @@ export const DashboardPage: React.FC = () => {
                 onClick={() => setActiveTab('audits')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
                   activeTab === 'audits'
-                    ? 'bg-violet-600 text-white shadow-subtle'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    ? 'bg-violet-900/90 text-violet-100 border border-violet-500/50 font-semibold shadow-subtle'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                 }`}
               >
                 <CheckSquare className="w-3.5 h-3.5" />
@@ -474,8 +492,8 @@ export const DashboardPage: React.FC = () => {
                 onClick={() => setActiveTab('recommendations')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
                   activeTab === 'recommendations'
-                    ? 'bg-violet-600 text-white shadow-subtle'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    ? 'bg-violet-900/90 text-violet-100 border border-violet-500/50 font-semibold shadow-subtle'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                 }`}
               >
                 <Compass className="w-3.5 h-3.5" />
@@ -487,8 +505,8 @@ export const DashboardPage: React.FC = () => {
                 onClick={() => setActiveTab('history')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
                   activeTab === 'history'
-                    ? 'bg-violet-600 text-white shadow-subtle'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    ? 'bg-violet-900/90 text-violet-100 border border-violet-500/50 font-semibold shadow-subtle'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                 }`}
               >
                 <History className="w-3.5 h-3.5" />
@@ -522,14 +540,12 @@ export const DashboardPage: React.FC = () => {
                 <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
                 <span className="hidden sm:inline">Re-analyze</span>
               </button>
-
-              <ExportButton data={analysisData} />
             </div>
           </div>
 
-          {/* TAB 1: OVERVIEW */}
+          {/* TAB 1: PORTFOLIO AUDIT REPORT (OVERVIEW) */}
           {activeTab === 'overview' && (
-            <div className="space-y-6 animate-fadeIn">
+            <div className="space-y-8 animate-fadeIn">
               {/* Quick Comparison Banner (Latest vs Previous Run) */}
               <QuickComparisonBanner
                 username={analysisData.username}
@@ -537,35 +553,53 @@ export const DashboardPage: React.FC = () => {
                 isDemo={analysisData.is_demo_data}
               />
 
-              {/* Profile Header Card */}
-              <ProfileHeader
+              {/* 01 — Portfolio Summary */}
+              <AuditHeader
                 profile={analysisData.profile}
-                isDemoData={analysisData.is_demo_data}
-                isConnectedAccount={isConnectedAccount}
-              />
-
-              {/* Four Key Metrics (Score, Repos, Stars, Primary Language) */}
-              <StatsGrid
                 stats={analysisData.stats}
                 score={analysisData.portfolio_score}
-                onViewScoreDetails={() => setActiveTab('overview')}
+                qualityChecklist={analysisData.quality_checklist}
+                analyzedAt={analysisData.profile.updated_at || undefined}
+                isDemoData={analysisData.is_demo_data}
+                isConnectedAccount={isConnectedAccount}
+                topTopics={Array.from(
+                  new Set(analysisData.top_repositories.flatMap((r) => r.topics).filter(Boolean))
+                ).slice(0, 5)}
               />
 
-              {/* Top 3 High-Impact Improvements */}
+              {/* 02 — Five-Pillar Assessment */}
+              <PortfolioScoreCard score={analysisData.portfolio_score} />
+
+              {/* 03 — Priority Improvements */}
               <TopImprovements
                 aiRecommendations={analysisData.ai_analysis?.analysis?.recommendations}
                 ruleRecommendations={analysisData.recommendations}
+                repositories={analysisData.top_repositories}
+                roadmap7={analysisData.roadmap_7_day}
                 onViewAll={() => setActiveTab('recommendations')}
               />
 
-              {/* Visual Language Donut & Repository Reach Charts */}
+              {/* 04 — Analytics and Reach (Integrates Career Opportunities in right column top panel) */}
               <VisualAnalytics
                 languages={analysisData.languages}
                 repositories={analysisData.top_repositories}
+                primaryLanguage={analysisData.stats.primary_language}
+                detectedLanguagesCount={analysisData.stats.detected_languages_count}
               />
 
-              {/* Deterministic 5-Pillar Score Breakdown */}
-              <PortfolioScoreCard score={analysisData.portfolio_score} />
+              {/* 05 — AI Insights and Qualitative Synthesis */}
+              <AuditAiSynthesisSection
+                aiEnvelope={analysisData.ai_analysis}
+                repositories={analysisData.top_repositories}
+                onViewAiTab={() => setActiveTab('ai')}
+                onRetryAi={handleRetryAi}
+                isLoadingAi={isLoadingAi}
+              />
+
+              {/* 06 — Repository Evidence */}
+              <AuditRepositoryEvidence
+                repositories={analysisData.top_repositories}
+              />
             </div>
           )}
 

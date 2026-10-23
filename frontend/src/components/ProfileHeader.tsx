@@ -32,19 +32,19 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isDemoDat
     <div className="relative glass-panel rounded-2xl p-6 sm:p-8 border border-slate-800 shadow-card overflow-hidden">
       {/* Top subtle banner if demo data or connection status */}
       {isDemoData ? (
-        <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
-          <Info className="w-3.5 h-3.5" />
-          <span>Demo Profile (Curated offline dataset for recruitment presentations)</span>
+        <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-mono font-medium">
+          <Info className="w-3.5 h-3.5 shrink-0" />
+          <span>Demo Profile &bull; Curated offline benchmark dataset</span>
         </div>
       ) : isConnectedAccount ? (
-        <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-mono font-medium">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
           <span>Verified Connected GitHub Account</span>
         </div>
       ) : (
-        <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-md bg-slate-800/80 border border-slate-700 text-slate-300 text-xs font-semibold">
-          <Globe className="w-3.5 h-3.5 text-slate-400" />
-          <span>Public Profile Analysis</span>
+        <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-md bg-slate-800/80 border border-slate-700/80 text-slate-300 text-xs font-mono font-medium">
+          <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span>Public Profile Audit</span>
         </div>
       )}
 
@@ -55,8 +55,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isDemoDat
             <img
               src={profile.avatar_url || 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png'}
               alt={profile.login}
-              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover ring-2 shadow-glow-violet ${
-                isConnectedAccount ? 'ring-emerald-500/40' : 'ring-violet-500/40'
+              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border ${
+                isConnectedAccount ? 'border-emerald-500/40 ring-1 ring-emerald-500/30' : 'border-slate-700 ring-1 ring-slate-800'
               }`}
             />
             <div
@@ -131,20 +131,20 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isDemoDat
 
         {/* Right side stats & View GitHub profile */}
         <div className="w-full md:w-auto flex flex-col sm:flex-row md:flex-col items-stretch sm:items-center md:items-end gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-slate-800">
-          <div className="flex items-center gap-4 text-xs font-medium text-slate-300 bg-navy-900/60 px-4 py-2 rounded-xl border border-slate-800">
+          <div className="flex items-center gap-4 text-xs font-mono text-slate-300 bg-navy-900 px-4 py-2 rounded-xl border border-slate-800">
             <div className="flex items-center gap-1.5">
               <FolderGit2 className="w-4 h-4 text-indigo-400" />
-              <span>{profile.public_repos} Repos</span>
+              <span><strong className="text-white font-mono">{profile.public_repos}</strong> repos</span>
             </div>
-            <div className="h-3 w-px bg-slate-700" />
+            <div className="h-3 w-px bg-slate-800" />
             <div className="flex items-center gap-1.5">
               <Users className="w-4 h-4 text-violet-400" />
-              <span>{profile.followers} Followers</span>
+              <span><strong className="text-white font-mono">{profile.followers}</strong> followers</span>
             </div>
-            <div className="h-3 w-px bg-slate-700" />
+            <div className="h-3 w-px bg-slate-800" />
             <div className="flex items-center gap-1.5">
-              <span className="text-slate-400">Following:</span>
-              <span>{profile.following}</span>
+              <span className="text-slate-400">following:</span>
+              <span className="text-white font-mono">{profile.following}</span>
             </div>
           </div>
 
@@ -152,7 +152,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isDemoDat
             href={profile.html_url}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700/80 text-xs font-semibold transition-all shadow-subtle"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700/80 text-xs font-semibold transition-all shadow-subtle"
           >
             <span>View GitHub Profile</span>
             <ExternalLink className="w-3.5 h-3.5" />

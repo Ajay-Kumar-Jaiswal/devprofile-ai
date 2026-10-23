@@ -178,7 +178,7 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
             <button
               onClick={handleCompareSelected}
               disabled={isComparing}
-              className="px-3.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-glow-violet disabled:opacity-50"
+              className="px-3.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-subtle border border-violet-500/30 disabled:opacity-50"
             >
               {isComparing ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -236,7 +236,7 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
       {/* Runs Grid */}
       {!isLoading && !error && runs.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {runs.map((run) => {
+          {runs.map((run, idx) => {
             const isSelected = selectedRunIds.includes(run.id);
             const dateStr = new Date(run.created_at).toLocaleDateString(undefined, {
               year: 'numeric',
@@ -246,11 +246,16 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
               minute: '2-digit',
             });
 
+            const priorRun = runs.slice(idx + 1).find(
+              (r) => r.analyzed_login.toLowerCase() === run.analyzed_login.toLowerCase()
+            );
+            const delta = priorRun ? run.overall_score - priorRun.overall_score : null;
+
             return (
               <div
                 key={run.id}
                 onClick={() => onLoadRun(run.id, run.analyzed_login)}
-                className={`glass-panel p-5 rounded-2xl border transition-all cursor-pointer relative ${
+                className={`surface-card p-5 rounded-2xl border transition-all cursor-pointer relative shadow-card hover:shadow-card-hover ${
                   isSelected
                     ? 'border-violet-500 ring-2 ring-violet-500/20 bg-navy-900/90'
                     : 'border-slate-800 hover:border-slate-700 bg-navy-900/60'
@@ -261,7 +266,7 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
                     <button
                       type="button"
                       onClick={(e) => toggleSelectRun(run.id, e)}
-                      className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                      className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors cursor-pointer ${
                         isSelected
                           ? 'bg-violet-600 border-violet-500 text-white'
                           : 'border-slate-700 bg-navy-950 text-transparent hover:border-slate-600'
@@ -273,7 +278,7 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
 
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-white text-sm">
+                        <span className="font-bold font-mono text-white text-sm">
                           @{run.analyzed_login}
                         </span>
                         {run.is_demo_data && (
@@ -281,34 +286,56 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
                             Demo
                           </span>
                         )}
+                        <span className="text-[10px] font-mono text-slate-500">
+                          #{run.id}
+                        </span>
                       </div>
-                      <span className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                      <span className="text-[11px] text-slate-400 font-mono flex items-center gap-1 mt-0.5">
                         <Calendar className="w-3 h-3 text-slate-500" />
                         <span>{dateStr}</span>
                       </span>
                     </div>
                   </div>
 
-                  {/* Score pill */}
-                  <div className="text-right">
+                  {/* Score pill & Delta progression */}
+                  <div className="text-right flex flex-col items-end gap-1">
                     <div className="flex items-baseline justify-end gap-1">
-                      <span className="text-xl font-black text-white">{run.overall_score}</span>
-                      <span className="text-[10px] text-slate-400">/ 100</span>
+                      <span className="text-xl font-black font-mono text-white">{run.overall_score}</span>
+                      <span className="text-[10px] font-mono text-slate-400">/ 100</span>
                     </div>
-                    <span className="text-[10px] font-semibold text-violet-300 block">
-                      {run.score_tier}
-                    </span>
+                    {delta !== null ? (
+                      <span
+                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                          delta > 0
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                            : delta < 0
+                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                            : 'bg-slate-800 text-slate-400 border-slate-700'
+                        }`}
+                      >
+                        {delta > 0 ? (
+                          <TrendingUp className="w-2.5 h-2.5 text-emerald-400" />
+                        ) : delta < 0 ? (
+                          <TrendingDown className="w-2.5 h-2.5 text-rose-400" />
+                        ) : null}
+                        <span>{delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '±0'} pts</span>
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold text-violet-300 block">
+                        {run.score_tier}
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 {/* Sub-stats & Actions */}
                 <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
                   <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 font-mono text-[11px]">
                       <BookOpen className="w-3.5 h-3.5 text-slate-500" />
                       <span>{run.public_repos} repos</span>
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 font-mono text-[11px]">
                       <Star className="w-3.5 h-3.5 text-amber-400" />
                       <span>{run.total_stars}</span>
                     </span>
@@ -323,7 +350,7 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
                     <button
                       type="button"
                       onClick={(e) => handleDeleteRun(run.id, e)}
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
                       title="Delete snapshot"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -551,7 +578,7 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
                 type="button"
                 onClick={handleClearAllHistory}
                 disabled={isClearing}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-glow-rose disabled:opacity-50 cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-subtle border border-rose-500/30 disabled:opacity-50 cursor-pointer"
               >
                 {isClearing ? (
                   <>

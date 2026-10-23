@@ -1,6 +1,6 @@
 import React from 'react';
 import type { AggregateStats, PortfolioScore } from '../types/api';
-import { Award, Star, BookOpen, Code2, TrendingUp } from 'lucide-react';
+import { Award, Star, BookOpen, Code2 } from 'lucide-react';
 
 interface StatsGridProps {
   stats: AggregateStats;
@@ -12,13 +12,14 @@ export const StatsGrid: React.FC<StatsGridProps> = ({ stats, score, onViewScoreD
   const cards = [
     {
       title: 'Portfolio Score',
-      value: score ? `${score.overall_score} / 100` : '—',
+      value: score ? `${score.overall_score}` : '—',
+      suffix: '/ 100',
       badge: score?.tier,
       subtext: 'Deterministic 5-pillar rule audit',
       icon: Award,
       iconColor: 'text-violet-400',
       bgColor: 'bg-violet-500/10 border-violet-500/20',
-      accentGlow: 'hover:border-violet-500/40',
+      accentBorder: 'hover:border-violet-500/40',
       onClick: onViewScoreDetails,
       clickable: Boolean(onViewScoreDetails),
     },
@@ -30,27 +31,28 @@ export const StatsGrid: React.FC<StatsGridProps> = ({ stats, score, onViewScoreD
       icon: BookOpen,
       iconColor: 'text-indigo-400',
       bgColor: 'bg-indigo-500/10 border-indigo-500/20',
-      accentGlow: 'hover:border-indigo-500/40',
+      accentBorder: 'hover:border-indigo-500/40',
     },
     {
       title: 'Total Stars',
       value: stats.total_stars.toLocaleString(),
       badge: `${stats.total_forks} forks`,
-      subtext: `Avg ${stats.average_stars_per_repo} stars per repo`,
+      subtext: `Avg ${stats.average_stars_per_repo} stars / repository`,
       icon: Star,
       iconColor: 'text-amber-400',
       bgColor: 'bg-amber-500/10 border-amber-500/20',
-      accentGlow: 'hover:border-amber-500/40',
+      accentBorder: 'hover:border-amber-500/40',
     },
     {
       title: 'Primary Language',
       value: stats.primary_language || 'Multi-stack',
       badge: `${stats.detected_languages_count} detected`,
-      subtext: `${stats.detected_languages_count} languages identified in code`,
+      subtext: `${stats.detected_languages_count} languages across code`,
       icon: Code2,
       iconColor: 'text-emerald-400',
       bgColor: 'bg-emerald-500/10 border-emerald-500/20',
-      accentGlow: 'hover:border-emerald-500/40',
+      accentBorder: 'hover:border-emerald-500/40',
+      isTextVal: true,
     },
   ];
 
@@ -62,12 +64,12 @@ export const StatsGrid: React.FC<StatsGridProps> = ({ stats, score, onViewScoreD
           <div
             key={i}
             onClick={card.onClick}
-            className={`glass-panel rounded-2xl p-5 border border-slate-800 transition-all ${card.accentGlow} ${
-              card.clickable ? 'cursor-pointer hover:bg-navy-900/80 active:scale-[0.99]' : ''
+            className={`glass-panel rounded-2xl p-5 border border-slate-800 transition-all ${card.accentBorder} ${
+              card.clickable ? 'cursor-pointer hover:bg-navy-900/90 active:scale-[0.99]' : ''
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                 {card.title}
               </span>
               <div className={`p-2 rounded-xl border ${card.bgColor}`}>
@@ -77,18 +79,22 @@ export const StatsGrid: React.FC<StatsGridProps> = ({ stats, score, onViewScoreD
 
             <div className="mt-3">
               <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                <span className={`text-2xl sm:text-3xl font-extrabold text-white tracking-tight ${card.isTextVal ? '' : 'font-mono'}`}>
                   {card.value}
                 </span>
+                {card.suffix && (
+                  <span className="text-xs font-mono font-medium text-slate-400">
+                    {card.suffix}
+                  </span>
+                )}
                 {card.badge && (
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-medium bg-slate-800 text-slate-300 border border-slate-700">
                     {card.badge}
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-xs text-slate-400 flex items-center gap-1">
-                <TrendingUp className="w-3 h-3 text-slate-500 shrink-0" />
-                <span className="truncate">{card.subtext}</span>
+              <p className="mt-2 text-xs text-slate-400 truncate">
+                {card.subtext}
               </p>
             </div>
           </div>

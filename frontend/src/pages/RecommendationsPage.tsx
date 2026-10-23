@@ -61,9 +61,11 @@ export const RecommendationsPage: React.FC = () => {
   const recurringCount = recs.filter((r) => r.status === 'open' && r.recurrence_count > 0).length;
   const resolvedCount = recs.filter((r) => r.status === 'resolved').length;
   const dismissedCount = recs.filter((r) => r.status === 'dismissed').length;
+  const totalActionable = openCount + recurringCount + resolvedCount;
+  const resolutionRate = totalActionable > 0 ? Math.round((resolvedCount / totalActionable) * 100) : 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 text-slate-100">
+    <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 text-slate-100">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
         <div>
@@ -78,15 +80,68 @@ export const RecommendationsPage: React.FC = () => {
 
         <button
           onClick={() => navigate('/dashboard?refresh=true')}
-          className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-subtle self-start sm:self-auto"
+          className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-subtle self-start sm:self-auto cursor-pointer"
         >
           <span>Run Fresh Analysis</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>
 
+      {/* Progress Telemetry Stat Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="surface-card p-4 rounded-2xl border border-slate-800 shadow-card">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>Active Open</span>
+            <AlertTriangle className="w-4 h-4 text-amber-400" />
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-black font-mono text-white">{openCount}</span>
+            <span className="text-[11px] text-slate-500 font-mono">items</span>
+          </div>
+        </div>
+
+        <div className="surface-card p-4 rounded-2xl border border-slate-800 shadow-card">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>Recurring Regressions</span>
+            <RotateCcw className="w-4 h-4 text-rose-400" />
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-black font-mono text-rose-400">{recurringCount}</span>
+            <span className="text-[11px] text-slate-500 font-mono">reappeared</span>
+          </div>
+        </div>
+
+        <div className="surface-card p-4 rounded-2xl border border-slate-800 shadow-card">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>Verified Resolved</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-black font-mono text-emerald-400">{resolvedCount}</span>
+            <span className="text-[11px] text-slate-500 font-mono">fixed</span>
+          </div>
+        </div>
+
+        <div className="surface-card p-4 rounded-2xl border border-slate-800 shadow-card">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>Resolution Rate</span>
+            <span className="text-[10px] font-mono font-bold text-violet-400">{resolutionRate}%</span>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-black font-mono text-violet-300">{resolutionRate}%</span>
+            <span className="text-[11px] text-slate-500 font-mono">cleared</span>
+          </div>
+          <div className="w-full bg-navy-950 rounded-full h-1.5 mt-2 overflow-hidden border border-slate-800">
+            <div
+              className="h-full bg-violet-500 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(100, Math.max(5, resolutionRate))}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Verification Notice */}
-      <div className="p-4 rounded-xl bg-navy-900/90 border border-slate-800 text-xs text-slate-300 flex items-start gap-3 leading-relaxed">
+      <div className="p-4 rounded-2xl bg-navy-900/90 border border-slate-800 text-xs text-slate-300 flex items-start gap-3 leading-relaxed shadow-card">
         <Info className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
         <div>
           <span className="font-bold text-white block mb-0.5">Automated Evidence Verification</span>
@@ -114,15 +169,15 @@ export const RecommendationsPage: React.FC = () => {
               onClick={() => setFilter(tab.id as any)}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-medium transition-all shrink-0 ${
                 isSelected
-                  ? 'bg-violet-600 text-white shadow-subtle'
-                  : 'bg-navy-900/80 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
+                  ? 'bg-slate-800 text-white border border-slate-700 shadow-subtle'
+                  : 'bg-navy-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/60'
               }`}
             >
               <Icon className={`w-3.5 h-3.5 ${tab.color || ''}`} />
               <span>{tab.label}</span>
               <span
-                className={`px-1.5 py-0.2 rounded-md text-[10px] font-bold ${
-                  isSelected ? 'bg-violet-800 text-white' : 'bg-slate-800 text-slate-300'
+                className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
+                  isSelected ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-300'
                 }`}
               >
                 {tab.count}
@@ -188,7 +243,7 @@ export const RecommendationsPage: React.FC = () => {
             return (
               <div
                 key={rec.id}
-                className={`glass-panel p-5 rounded-2xl border transition-all flex flex-col justify-between space-y-4 ${
+                className={`surface-card p-5 rounded-2xl border transition-all flex flex-col justify-between space-y-4 shadow-card hover:shadow-card-hover ${
                   isResolved
                     ? 'border-emerald-500/30 bg-emerald-950/10'
                     : isRecurring
@@ -231,7 +286,7 @@ export const RecommendationsPage: React.FC = () => {
                             ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
                             : rec.priority === 'medium'
                             ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                            : 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+                            : 'bg-slate-800 text-slate-300 border border-slate-700'
                         }`}
                       >
                         {rec.priority}

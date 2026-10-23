@@ -216,7 +216,7 @@ export const ErrorCard: React.FC<ErrorCardProps> = ({
           <button
             type="button"
             onClick={onLoadDemo}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs sm:text-sm font-semibold transition-all shadow-glow-violet active:scale-95"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs sm:text-sm font-semibold transition-all shadow-subtle border border-violet-500/30 active:scale-[0.99]"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Load Demo Profile Instead</span>

@@ -34,8 +34,8 @@ export const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({
         );
       case 'low':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/30">
-            <CheckCircle2 className="w-3 h-3 text-blue-400" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+            <CheckCircle2 className="w-3 h-3 text-slate-400" />
             Low Priority
           </span>
         );

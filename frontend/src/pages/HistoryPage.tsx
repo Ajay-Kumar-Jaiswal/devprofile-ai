@@ -23,6 +23,7 @@ import {
   X,
   CheckCircle2,
   AlertTriangle,
+  Search,
 } from 'lucide-react';
 
 export const HistoryPage: React.FC = () => {
@@ -44,6 +45,9 @@ export const HistoryPage: React.FC = () => {
   const [isClearing, setIsClearing] = useState<boolean>(false);
   const [clearError, setClearError] = useState<string | null>(null);
   const [clearSuccess, setClearSuccess] = useState<string | null>(null);
+
+  // Search filter
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -144,7 +148,7 @@ export const HistoryPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
         <div>
@@ -242,109 +246,216 @@ export const HistoryPage: React.FC = () => {
       {/* History Runs List */}
       {!isLoading && runs.length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-            <span>
-              Showing {runs.length} of {totalRuns} total snapshots
-            </span>
-            <span>Select any 2 runs to compare changes</span>
+          {/* Search Toolbar & Snapshot Counter */}
+          <div className="surface-card p-3 rounded-2xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-card">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Filter audit snapshots by GitHub handle, language, or tier..."
+                className="w-full h-10 pl-10 pr-9 rounded-xl bg-navy-950 border border-slate-700/80 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all font-mono"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 text-xs text-slate-400 px-2 shrink-0">
+              <span>
+                Showing <strong className="text-white">{runs.filter((r) => !searchQuery.trim() || r.analyzed_login.toLowerCase().includes(searchQuery.toLowerCase()) || (r.primary_language && r.primary_language.toLowerCase().includes(searchQuery.toLowerCase()))).length}</strong> of {totalRuns} snapshots
+              </span>
+              <span className="hidden md:inline">&bull;</span>
+              <span className="hidden md:inline">Select 2 to compare</span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-3.5">
-            {runs.map((run) => {
-              const isSelected = selectedRunIds.includes(run.id);
-              const formattedDate = new Date(run.created_at).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              });
+            {runs
+              .filter((run) => {
+                if (!searchQuery.trim()) return true;
+                const q = searchQuery.toLowerCase();
+                return (
+                  run.analyzed_login.toLowerCase().includes(q) ||
+                  (run.primary_language && run.primary_language.toLowerCase().includes(q)) ||
+                  run.score_tier.toLowerCase().includes(q)
+                );
+              })
+              .map((run, idx) => {
+                const isSelected = selectedRunIds.includes(run.id);
+                const formattedDate = new Date(run.created_at).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
 
-              return (
-                <div
-                  key={run.id}
-                  className={`glass-panel p-5 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                    isSelected
-                      ? 'border-violet-500/60 bg-violet-950/20'
-                      : 'border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  {/* Left: Checkbox + User handle + Date */}
-                  <div className="flex items-center gap-3.5">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleSelectRun(run.id)}
-                      className="h-4 w-4 rounded border-slate-700 bg-navy-900 text-violet-600 focus:ring-violet-500/40 cursor-pointer"
-                    />
+                // Calculate real delta compared to prior run for the same analyzed login
+                const priorRun = runs.slice(idx + 1).find(
+                  (r) => r.analyzed_login.toLowerCase() === run.analyzed_login.toLowerCase()
+                );
+                const delta = priorRun ? run.overall_score - priorRun.overall_score : null;
 
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-white text-sm">
-                          @{run.analyzed_login}
-                        </span>
-                        {run.is_demo_data && (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30">
-                            Demo Mode
+                return (
+                  <div
+                    key={run.id}
+                    className={`surface-card p-5 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-card hover:shadow-card-hover ${
+                      isSelected
+                        ? 'border-violet-500/80 bg-violet-950/20 shadow-subtle'
+                        : 'border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    {/* Left: Checkbox + User handle + Timestamp */}
+                    <div className="flex items-center gap-3.5">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectRun(run.id)}
+                        className="h-4 w-4 rounded border-slate-700 bg-navy-950 text-violet-600 focus:ring-violet-500/40 cursor-pointer"
+                      />
+
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-white text-sm">
+                            @{run.analyzed_login}
                           </span>
-                        )}
+                          {run.is_demo_data && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                              Demo
+                            </span>
+                          )}
+                          <span className="text-[10px] font-mono text-slate-500">
+                            #{run.id}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-1 text-xs text-slate-400 font-mono">
+                          <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                          <span>{formattedDate}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Middle: Score Badge, Delta indicator, Metrics Chips */}
+                    <div className="flex items-center gap-3 flex-wrap text-xs">
+                      {/* Overall score */}
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-navy-950 border border-slate-800">
+                        <Award className="w-4 h-4 text-violet-400" />
+                        <span className="font-extrabold text-white font-mono">{run.overall_score}/100</span>
+                        <span className="text-[10px] font-semibold text-slate-400">({run.score_tier})</span>
                       </div>
 
-                      <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
-                        <Calendar className="w-3 h-3 text-slate-500" />
-                        <span>{formattedDate}</span>
+                      {/* Score Delta Progression */}
+                      {delta !== null ? (
+                        <div
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-mono font-bold border ${
+                            delta > 0
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                              : delta < 0
+                              ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                              : 'bg-slate-800 text-slate-400 border-slate-700'
+                          }`}
+                          title={`Score changed by ${delta > 0 ? '+' : ''}${delta} pts relative to snapshot #${priorRun?.id}`}
+                        >
+                          {delta > 0 ? (
+                            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : delta < 0 ? (
+                            <TrendingDown className="w-3.5 h-3.5 text-rose-400" />
+                          ) : null}
+                          <span>{delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '±0'} pts</span>
+                        </div>
+                      ) : (
+                        <div className="px-2.5 py-1 rounded-xl text-[10px] font-mono font-semibold text-slate-400 bg-navy-950 border border-slate-800">
+                          Initial Snapshot
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-navy-950 border border-slate-800">
+                        <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
+                        <span className="text-slate-300 font-medium font-mono">{run.public_repos} repos</span>
                       </div>
+
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-navy-950 border border-slate-800">
+                        <Star className="w-3.5 h-3.5 text-amber-400" />
+                        <span className="text-slate-300 font-medium font-mono">{run.total_stars} stars</span>
+                      </div>
+
+                      {run.primary_language && (
+                        <span className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                          {run.primary_language}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Right: Actions */}
+                    <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenReport(run)}
+                        className="px-3.5 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600 text-violet-300 hover:text-white border border-violet-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <span>Open Report</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRun(run.id)}
+                        className="p-1.5 rounded-xl bg-navy-950 hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 border border-slate-800 transition-colors cursor-pointer"
+                        title="Delete run snapshot"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
 
-                  {/* Middle: Metrics Chips */}
-                  <div className="flex items-center gap-4 flex-wrap text-xs">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-navy-900/80 border border-slate-800">
-                      <Award className="w-4 h-4 text-violet-400" />
-                      <span className="font-extrabold text-white">{run.overall_score}/100</span>
-                      <span className="text-[10px] font-semibold text-slate-400">({run.score_tier})</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-navy-900/80 border border-slate-800">
-                      <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
-                      <span className="text-slate-300 font-medium">{run.public_repos} repos</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-navy-900/80 border border-slate-800">
-                      <Star className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="text-slate-300 font-medium">{run.total_stars} stars</span>
-                    </div>
-
-                    {run.primary_language && (
-                      <span className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                        {run.primary_language}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Right: Actions */}
-                  <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenReport(run)}
-                      className="px-3.5 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600 text-violet-300 hover:text-white border border-violet-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all"
-                    >
-                      <span>Open Report</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteRun(run.id)}
-                      className="p-1.5 rounded-xl bg-navy-900 hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 border border-slate-800 transition-colors"
-                      title="Delete run snapshot"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+      {/* Floating Bottom Comparison Action Bar */}
+      {selectedRunIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-navy-900/95 backdrop-blur-md border border-violet-500/50 rounded-2xl shadow-2xl p-3 px-5 flex items-center gap-4 text-xs animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+            <span className="text-white font-semibold">
+              {selectedRunIds.length === 1
+                ? '1 snapshot selected. Select 1 more to compare.'
+                : '2 snapshots ready for side-by-side comparison.'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedRunIds.length === 2 && (
+              <button
+                type="button"
+                onClick={handleCompareSelected}
+                disabled={isComparing}
+                className="px-3.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold flex items-center gap-1.5 shadow-subtle border border-violet-500/30 transition-all cursor-pointer"
+              >
+                {isComparing ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <GitCompare className="w-3.5 h-3.5" />
+                )}
+                <span>Compare Now</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setSelectedRunIds([])}
+              className="text-slate-400 hover:text-white px-2 py-1 text-xs transition-colors cursor-pointer"
+            >
+              Clear
+            </button>
           </div>
         </div>
       )}
@@ -551,7 +662,7 @@ export const HistoryPage: React.FC = () => {
                 type="button"
                 onClick={handleClearAllHistory}
                 disabled={isClearing}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-glow-rose disabled:opacity-50 cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-subtle border border-rose-500/30 disabled:opacity-50 cursor-pointer"
               >
                 {isClearing ? (
                   <>

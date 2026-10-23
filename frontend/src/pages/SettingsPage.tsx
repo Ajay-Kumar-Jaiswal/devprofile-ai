@@ -320,7 +320,7 @@ export const SettingsPage: React.FC = () => {
 
       <div className="space-y-6">
         {/* 1. Account Identity Overview */}
-        <div className="glass-panel p-6 sm:p-7 rounded-2xl border border-slate-800 shadow-card space-y-4">
+        <div className="surface-card p-6 sm:p-7 rounded-2xl border border-slate-800 shadow-card space-y-4">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
             <User className="w-4 h-4 text-violet-400" />
             <span>Developer Account Identity</span>
@@ -340,7 +340,7 @@ export const SettingsPage: React.FC = () => {
         </div>
 
         {/* 2. Connected GitHub Account */}
-        <div className="glass-panel p-6 sm:p-7 rounded-2xl border border-slate-800 shadow-card space-y-4">
+        <div className="surface-card p-6 sm:p-7 rounded-2xl border border-slate-800 shadow-card space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
               <GithubIcon className="w-4 h-4 text-violet-400" />
@@ -483,7 +483,7 @@ export const SettingsPage: React.FC = () => {
                   type="button"
                   onClick={handleLinkGitHub}
                   disabled={isLinkingGitHub}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs transition-all shadow-subtle hover:shadow-glow-violet cursor-pointer disabled:opacity-50 whitespace-nowrap self-start sm:self-center"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs transition-all shadow-subtle border border-violet-500/30 cursor-pointer disabled:opacity-50 whitespace-nowrap self-start sm:self-center"
                 >
                   {isLinkingGitHub ? (
                     <>
@@ -503,7 +503,7 @@ export const SettingsPage: React.FC = () => {
         </div>
 
         {/* 3. Default Analyzed Profile Target */}
-        <div className="glass-panel p-6 sm:p-7 rounded-2xl border border-slate-800 shadow-card space-y-4">
+        <div className="surface-card p-6 sm:p-7 rounded-2xl border border-slate-800 shadow-card space-y-4">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
             <GithubIcon className="w-4 h-4 text-violet-400" />
             <span>Default Analyzed Profile</span>
@@ -545,7 +545,7 @@ export const SettingsPage: React.FC = () => {
         </div>
 
         {/* 4. Security */}
-        <div id="security-section" className="glass-panel p-6 sm:p-7 rounded-2xl border border-slate-800 shadow-card space-y-4 scroll-mt-6">
+        <div id="security-section" className="surface-card p-6 sm:p-7 rounded-2xl border border-slate-800 shadow-card space-y-4 scroll-mt-6">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
               <Lock className="w-4 h-4 text-violet-400" />
@@ -672,7 +672,7 @@ export const SettingsPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isSettingUp}
-                    className="h-10 px-5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs sm:text-sm font-semibold transition-all shadow-subtle hover:shadow-glow-violet flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                    className="h-10 px-5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs sm:text-sm font-semibold transition-all shadow-subtle border border-violet-500/30 flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-500"
                   >
                     {isSettingUp ? (
                       <>
@@ -800,7 +800,7 @@ export const SettingsPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isChangingPassword}
-                    className="h-10 px-5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs sm:text-sm font-semibold transition-all shadow-subtle hover:shadow-glow-violet flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                    className="h-10 px-5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs sm:text-sm font-semibold transition-all shadow-subtle border border-violet-500/30 flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-500"
                   >
                     {isChangingPassword ? (
                       <>
@@ -818,7 +818,7 @@ export const SettingsPage: React.FC = () => {
         </div>
 
         {/* 5. Session & Sign Out */}
-        <div className="glass-panel p-6 sm:p-7 rounded-2xl border border-slate-800 shadow-card flex items-center justify-between">
+        <div className="surface-card p-6 sm:p-7 rounded-2xl border border-slate-800 shadow-card flex items-center justify-between">
           <div>
             <h2 className="text-sm font-bold text-white">Active Session</h2>
             <p className="text-xs text-slate-400 mt-0.5">

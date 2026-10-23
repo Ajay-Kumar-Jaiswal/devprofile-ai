@@ -3,7 +3,7 @@ import { Loader2 } from 'lucide-react';
 
 export const LoadingSkeleton: React.FC = () => {
   return (
-    <div className="space-y-6 animate-pulse max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="space-y-6 animate-pulse max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
       {/* Progress feedback banner */}
       <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-violet-950/30 border border-violet-500/20 text-violet-300 text-sm font-medium">
         <Loader2 className="w-5 h-5 animate-spin text-violet-400" />

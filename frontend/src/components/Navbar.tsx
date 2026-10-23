@@ -82,18 +82,21 @@ export const Navbar: React.FC<NavbarProps> = ({ onLoadDemo, isLoading = false })
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-navy-950/85 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-navy-950/90 backdrop-blur-md">
+      <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Brand Logo & Name */}
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2.5 sm:gap-3 group">
-            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-tr from-violet-600 via-indigo-500 to-blue-500 flex items-center justify-center shadow-glow-violet transition-transform group-hover:scale-105 shrink-0">
-              <Terminal className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            <div className="h-9 w-9 sm:h-9.5 sm:w-9.5 rounded-xl bg-navy-900 border border-slate-700/80 group-hover:border-violet-500/50 flex items-center justify-center transition-all shrink-0 shadow-subtle">
+              <Terminal className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-violet-400 group-hover:text-violet-300 transition-colors" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-base sm:text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
-                  DevProfile AI
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-base sm:text-lg tracking-tight text-white group-hover:text-slate-100 transition-colors">
+                  DevProfile
+                </span>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-violet-500/10 text-violet-300 border border-violet-500/20 font-semibold">
+                  AI
                 </span>
               </div>
             </div>
@@ -110,7 +113,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onLoadDemo, isLoading = false })
                     to={link.to}
                     className={`px-3 py-1.5 rounded-lg transition-colors ${
                       isActive
-                        ? 'bg-violet-600/15 text-violet-300 border border-violet-500/30'
+                        ? 'bg-violet-900/90 text-violet-100 border border-violet-500/50 font-semibold shadow-subtle'
                         : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                     }`}
                   >
@@ -258,7 +261,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onLoadDemo, isLoading = false })
               <button
                 type="button"
                 onClick={() => openAuthDrawer('signup')}
-                className="px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-all shadow-subtle hover:shadow-glow-violet cursor-pointer"
+                className="px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-all shadow-subtle border border-violet-500/30 cursor-pointer"
               >
                 Sign Up
               </button>

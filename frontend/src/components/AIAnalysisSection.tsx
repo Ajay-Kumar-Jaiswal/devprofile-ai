@@ -49,14 +49,14 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
   if (isLoadingAi) {
 
     return (
-      <div className="glass-panel rounded-2xl p-6 sm:p-8 border border-violet-500/40 shadow-glow-violet space-y-6">
+      <div className="glass-panel rounded-2xl p-6 sm:p-8 border border-slate-800 shadow-card space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-violet-600/20 text-violet-400 border border-violet-500/30">
+            <div className="p-2.5 rounded-xl bg-navy-900 border border-slate-800 text-violet-400">
               <RefreshCw className="w-5 h-5 animate-spin" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
                 <span>AI Portfolio Analysis</span>
               </h3>
               <p className="text-xs text-slate-400">
@@ -66,20 +66,20 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
           </div>
 
           <div className="flex items-center gap-2 self-start sm:self-auto">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-violet-500/10 text-violet-300 border border-violet-500/30">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-medium bg-violet-500/10 text-violet-300 border border-violet-500/30">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />
-              <span>Analyzing...</span>
+              <span>Synthesizing...</span>
             </span>
           </div>
         </div>
 
-        <div className="p-6 rounded-xl bg-navy-900/60 border border-slate-800 space-y-3 text-center">
+        <div className="p-6 rounded-xl bg-navy-900 border border-slate-800 space-y-3 text-center">
           <div className="inline-flex p-3 rounded-full bg-violet-500/10 text-violet-400 mb-1">
-            <Sparkles className="w-6 h-6 animate-pulse" />
+            <Sparkles className="w-5 h-5 animate-pulse" />
           </div>
-          <h4 className="text-sm font-semibold text-white">Generating Portfolio Insights</h4>
+          <h4 className="text-sm font-semibold text-white">Generating Developer Career Insights</h4>
           <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-            Reviewing your repositories, code patterns, and project structure to identify strengths and growth areas.
+            Reviewing your repositories, code patterns, and project structure to synthesize candidate strengths and high-priority upgrades.
           </p>
         </div>
       </div>
@@ -157,7 +157,7 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
           <button
             onClick={handleTriggerRetry}
             disabled={isLoadingAi || cooldown > 0}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs sm:text-sm font-semibold transition-all shadow-glow-violet disabled:opacity-50 active:scale-95"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs sm:text-sm font-semibold transition-all border border-violet-500/30 shadow-subtle disabled:opacity-50 active:scale-[0.99]"
             title={cooldown > 0 ? `Please wait ${cooldown}s before retrying` : 'Generate or retry AI portfolio evaluation'}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${cooldown > 0 ? 'animate-spin' : ''}`} />
@@ -175,20 +175,23 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
   const { analysis } = aiEnvelope;
 
   return (
-    <div className="glass-panel rounded-2xl p-6 sm:p-8 border border-violet-500/30 shadow-glow-violet space-y-7">
+    <div className="glass-panel rounded-2xl p-6 sm:p-8 border border-slate-800 shadow-card space-y-7">
       {/* Top Banner & Explicit Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-600 text-white shadow-glow-violet">
-            <Sparkles className="w-5 h-5 text-white" />
+          <div className="p-2.5 rounded-xl bg-navy-900 border border-slate-800 text-violet-400">
+            <Sparkles className="w-5 h-5 text-violet-400" />
           </div>
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h3 className="text-lg font-bold text-white tracking-tight">
+              <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
                 AI Portfolio Analysis
               </h3>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-violet-500/10 text-violet-300 border border-violet-500/20">
+                AI Synthesis &bull; Groq Llama 3
+              </span>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 mt-0.5">
               Evaluated strictly from verified GitHub repository evidence &bull; Personalized developer insights
             </p>
           </div>
@@ -197,7 +200,7 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
         {/* Status & Retry */}
         <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
           {/* Explicit "Analysis complete" status badge */}
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
             <span>Analysis complete</span>
           </div>
@@ -215,12 +218,12 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
       </div>
 
       {/* 1. Executive Summary */}
-      <div className="p-5 rounded-xl bg-navy-900/80 border border-violet-500/20 space-y-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-violet-400 block">
+      <div className="p-5 rounded-xl bg-navy-900 border border-slate-800 space-y-2">
+        <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-violet-400 block">
           Executive Summary
         </span>
         <p className="text-sm sm:text-base text-slate-200 leading-relaxed font-normal">
-          "{analysis.summary}"
+          &ldquo;{analysis.summary}&rdquo;
         </p>
       </div>
 
@@ -314,14 +317,14 @@ export const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({
         {/* Placement Readiness */}
         <div className="p-5 rounded-xl bg-navy-900/60 border border-slate-800 space-y-3">
           <div className="flex items-center gap-2 text-sm font-bold text-white">
-            <Target className="w-4 h-4 text-blue-400" />
+            <Target className="w-4 h-4 text-violet-400" />
             <span>Career &amp; Placement Readiness</span>
           </div>
           <ul className="space-y-2 text-xs sm:text-sm text-slate-300">
             {analysis.placement_readiness && analysis.placement_readiness.length > 0 ? (
               analysis.placement_readiness.map((pr, idx) => (
                 <li key={idx} className="flex items-start gap-2 leading-relaxed">
-                  <span className="text-blue-400 shrink-0">&bull;</span>
+                  <span className="text-violet-400 shrink-0">&bull;</span>
                   <span>{pr}</span>
                 </li>
               ))

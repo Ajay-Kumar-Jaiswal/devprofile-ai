@@ -56,13 +56,13 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({ repositories }) 
         {/* Search & Language Dropdown */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search repos or topics..."
-              className="pl-9 pr-3 py-1.5 rounded-xl bg-navy-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/80 w-full sm:w-48"
+              placeholder="Filter repositories..."
+              className="pl-8 pr-3 py-1.5 rounded-xl bg-navy-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 w-full sm:w-48 font-mono text-[11px]"
             />
           </div>
 
@@ -70,9 +70,9 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({ repositories }) 
             <select
               value={filterLang}
               onChange={(e) => setFilterLang(e.target.value)}
-              className="px-3 py-1.5 rounded-xl bg-navy-900 border border-slate-800 text-xs text-slate-300 focus:outline-none focus:border-violet-500/80"
+              className="px-3 py-1.5 rounded-xl bg-navy-950 border border-slate-800 text-xs text-slate-300 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 font-mono text-[11px]"
             >
-              <option value="all">All Languages</option>
+              <option value="all">All Languages ({repositories.length})</option>
               {languages.map((l) => (
                 <option key={l} value={l}>
                   {l}
@@ -161,7 +161,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({ repositories }) 
                     {repo.stargazers_count}
                   </span>
                   <span className="flex items-center gap-1 text-slate-300">
-                    <GitFork className="w-3.5 h-3.5 text-blue-400" />
+                    <GitFork className="w-3.5 h-3.5 text-slate-400" />
                     {repo.forks_count}
                   </span>
                 </div>
