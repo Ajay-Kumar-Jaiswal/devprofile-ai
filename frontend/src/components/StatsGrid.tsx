@@ -19,7 +19,7 @@ export const StatsGrid: React.FC<StatsGridProps> = ({ stats, score, onViewScoreD
       icon: Award,
       iconColor: 'text-violet-400',
       bgColor: 'bg-violet-500/10 border-violet-500/20',
-      accentBorder: 'hover:border-violet-500/40',
+      accentBorder: 'hover:border-[#477F7C]/60',
       onClick: onViewScoreDetails,
       clickable: Boolean(onViewScoreDetails),
     },

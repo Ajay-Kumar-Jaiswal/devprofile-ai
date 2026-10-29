@@ -7,13 +7,21 @@
 }
 
 html, body {
-  background-color: #080B12;
-  color: #F1F5F9;
+  background-color: #0B0D12;
+  background-image: 
+    radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    radial-gradient(ellipse 900px 380px at 50% -10%, rgba(56, 178, 172, 0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 800px 340px at 50% 115%, rgba(180, 83, 9, 0.09) 0%, transparent 70%);
+  background-size: 24px 24px, 100% 100%, 100% 100%;
+  background-attachment: fixed;
+  color: #F5F5F7;
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   min-height: 100%;
   scrollbar-gutter: stable;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 /* Custom dark scrollbar */
@@ -23,54 +31,70 @@ html, body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #080B12;
+  background: #0B0D12;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #17243B;
+  background: #232736;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #2A3850;
+  background: #363D52;
 }
 
-/* Refined developer surfaces */
+/* Refined developer surfaces — glass/translucent */
 .glass-panel {
-  background: rgba(17, 26, 43, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid #2A3850;
+  background: rgba(16, 23, 35, 0.60);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
 }
 
 .glass-panel-interactive {
-  background: rgba(17, 26, 43, 0.82);
+  background: rgba(16, 23, 35, 0.60);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.glass-panel-interactive:hover,
+.glass-panel-interactive:focus-within {
+  border-color: rgba(124, 58, 237, 0.6);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(124, 58, 237, 0.25);
+}
+
+/* Developer utility styles — glass/translucent */
+.surface-panel {
+  background-color: rgba(20, 27, 40, 0.45);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid #2A3850;
-  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.glass-panel-interactive:hover {
-  border-color: rgba(139, 92, 246, 0.5);
-  background: rgba(37, 25, 66, 0.7);
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.45);
-}
-
-/* Developer utility styles */
-.surface-panel {
-  background-color: #0B1220;
-  border: 1px solid #2A3850;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .surface-card {
-  background-color: #111A2B;
-  border: 1px solid #2A3850;
+  background-color: rgba(16, 23, 35, 0.60);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.surface-card:hover {
+  border-color: rgba(124, 58, 237, 0.5);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(124, 58, 237, 0.25);
 }
 
 .surface-subtle {
-  background-color: #080B12;
-  border: 1px solid #2A3850;
+  background-color: rgba(20, 27, 40, 0.40);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.16);
 }
 
 /* Multi-line clamp compatibility */

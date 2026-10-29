@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   ShieldCheck,
   Globe,
-  Clock,
   BookOpen,
   Star,
   GitFork,
@@ -31,7 +30,6 @@ export const AuditHeader: React.FC<AuditHeaderProps> = ({
   profile,
   stats,
   score,
-  analyzedAt,
   isDemoData,
   isConnectedAccount = false,
   topTopics = [],
@@ -47,14 +45,6 @@ export const AuditHeader: React.FC<AuditHeaderProps> = ({
   };
 
   const theme = getScoreColor(score.overall_score);
-
-  const formattedAuditDate = analyzedAt
-    ? new Date(analyzedAt).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
-    : 'Recent Snapshot';
 
   const memberSince = profile.created_at
     ? new Date(profile.created_at).toLocaleDateString('en-US', {
@@ -82,24 +72,8 @@ export const AuditHeader: React.FC<AuditHeaderProps> = ({
 
   return (
     <section className="space-y-3.5">
-      {/* Section Header */}
-      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-2 border-b border-slate-800">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-xs font-bold text-violet-400 tracking-widest uppercase">
-            01 /
-          </span>
-          <h2 className="text-lg font-bold text-white tracking-tight">
-            Portfolio Summary
-          </h2>
-        </div>
-        <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
-          <Clock className="w-3.5 h-3.5 text-slate-500" />
-          <span>Audit Snapshot: {formattedAuditDate}</span>
-        </div>
-      </div>
-
       {/* Main Audit Dossier Card (3-Column Layout on Desktop) */}
-      <div className="surface-card rounded-2xl border border-slate-800 shadow-card p-4 sm:p-5 overflow-hidden">
+      <div className="surface-card rounded-2xl border border-[rgba(148,163,184,0.16)] shadow-card p-4 sm:p-5 overflow-hidden backdrop-blur-xl">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-4 items-stretch">
           {/* Column 1: Candidate Identity, Bio & Skill Pills (5 cols on desktop) */}
           <div className="lg:col-span-5 flex flex-col justify-between space-y-4 min-w-0">
@@ -113,13 +87,13 @@ export const AuditHeader: React.FC<AuditHeaderProps> = ({
                     className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover border border-slate-700 ring-1 ring-slate-800"
                   />
                 ) : (
-                  <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-navy-900 border border-slate-700 flex items-center justify-center font-mono font-bold text-lg sm:text-xl text-violet-300 ring-1 ring-slate-800 select-none">
+                  <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-[#141b28]/45 border border-[rgba(148,163,184,0.18)] flex items-center justify-center font-mono font-bold text-lg sm:text-xl text-violet-300 ring-1 ring-slate-800 select-none">
                     {initials}
                   </div>
                 )}
                 <div
-                  className={`absolute -bottom-1 -right-1 p-1 rounded-lg bg-navy-950 border ${
-                    isConnectedAccount ? 'border-emerald-500/40 text-emerald-400' : 'border-slate-700 text-slate-400'
+                  className={`absolute -bottom-1 -right-1 p-1 rounded-lg bg-[#101723]/80 border ${
+                    isConnectedAccount ? 'border-emerald-500/40 text-emerald-400' : 'border-[rgba(148,163,184,0.18)] text-slate-400'
                   }`}
                   title={isConnectedAccount ? 'Verified Connected Account' : 'Public Profile Audit'}
                 >
@@ -208,7 +182,7 @@ export const AuditHeader: React.FC<AuditHeaderProps> = ({
               {displayTopics.map((topic, idx) => (
                 <span
                   key={idx}
-                  className="px-2 py-0.5 rounded-md bg-navy-900 border border-slate-700/80 text-[11px] font-mono text-slate-200"
+                  className="px-2.5 py-1 rounded-lg bg-[#141b28]/45 backdrop-blur-sm border border-[rgba(148,163,184,0.16)] text-[11px] font-mono text-slate-200"
                 >
                   {topic}
                 </span>
@@ -217,7 +191,7 @@ export const AuditHeader: React.FC<AuditHeaderProps> = ({
           </div>
 
           {/* Column 2: Overall Score Card (3 cols on desktop) */}
-          <div className="lg:col-span-3 p-3.5 sm:p-4 rounded-xl bg-navy-900 border border-slate-800 flex flex-col justify-between space-y-2.5 min-w-0">
+          <div className="lg:col-span-3 p-3.5 sm:p-4 rounded-xl bg-[#141b28]/45 backdrop-blur-sm border border-[rgba(148,163,184,0.16)] hover:border-[rgba(148,163,184,0.28)] transition-all duration-180 flex flex-col justify-between space-y-2.5 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 truncate">
                 Overall Score
@@ -238,7 +212,7 @@ export const AuditHeader: React.FC<AuditHeaderProps> = ({
               </div>
 
               {/* Linear Progress Bar */}
-              <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+              <div className="w-full bg-[#0E1017] rounded-full h-1.5 overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-700 ${theme.bar}`}
                   style={{ width: `${Math.max(5, score.overall_score)}%` }}
@@ -254,7 +228,7 @@ export const AuditHeader: React.FC<AuditHeaderProps> = ({
           {/* Column 3: 2x2 Metric Mini-Cards Grid (4 cols on desktop) */}
           <div className="lg:col-span-4 grid grid-cols-2 gap-2 sm:gap-2.5 h-full min-w-0">
             {/* Card 1: Public Repositories */}
-            <div className="p-3 sm:p-3.5 rounded-xl bg-navy-900 border border-slate-800 flex flex-col justify-between space-y-1">
+            <div className="p-3 sm:p-3.5 rounded-xl bg-[#141b28]/45 backdrop-blur-sm border border-[rgba(148,163,184,0.16)] hover:border-[rgba(148,163,184,0.28)] transition-all duration-180 flex flex-col justify-between space-y-1">
               <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <BookOpen className="w-3.5 h-3.5 text-slate-400" />
                 <span>Public Repos</span>
@@ -270,7 +244,7 @@ export const AuditHeader: React.FC<AuditHeaderProps> = ({
             </div>
 
             {/* Card 2: Total Stars */}
-            <div className="p-3 sm:p-3.5 rounded-xl bg-navy-900 border border-slate-800 flex flex-col justify-between space-y-1">
+            <div className="p-3 sm:p-3.5 rounded-xl bg-[#141b28]/45 backdrop-blur-sm border border-[rgba(148,163,184,0.16)] hover:border-[rgba(148,163,184,0.28)] transition-all duration-180 flex flex-col justify-between space-y-1">
               <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <Star className="w-3.5 h-3.5 text-amber-400/90" />
                 <span>Total Stars</span>
@@ -286,7 +260,7 @@ export const AuditHeader: React.FC<AuditHeaderProps> = ({
             </div>
 
             {/* Card 3: Total Forks */}
-            <div className="p-3 sm:p-3.5 rounded-xl bg-navy-900 border border-slate-800 flex flex-col justify-between space-y-1">
+            <div className="p-3 sm:p-3.5 rounded-xl bg-[#141b28]/45 backdrop-blur-sm border border-[rgba(148,163,184,0.16)] hover:border-[rgba(148,163,184,0.28)] transition-all duration-180 flex flex-col justify-between space-y-1">
               <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <GitFork className="w-3.5 h-3.5 text-slate-400" />
                 <span>Total Forks</span>
@@ -302,7 +276,7 @@ export const AuditHeader: React.FC<AuditHeaderProps> = ({
             </div>
 
             {/* Card 4: Primary Language */}
-            <div className="p-3 sm:p-3.5 rounded-xl bg-navy-900 border border-slate-800 flex flex-col justify-between space-y-1">
+            <div className="p-3 sm:p-3.5 rounded-xl bg-[#141b28]/45 backdrop-blur-sm border border-[rgba(148,163,184,0.16)] hover:border-[rgba(148,163,184,0.28)] transition-all duration-180 flex flex-col justify-between space-y-1">
               <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <Code2 className="w-3.5 h-3.5 text-slate-400" />
                 <span>Primary Stack</span>

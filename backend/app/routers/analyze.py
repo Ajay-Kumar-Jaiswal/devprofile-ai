@@ -134,7 +134,7 @@ async def analyze_profile(
         )
 
     # 5. Persistent Analysis History & Recommendation Tracking for authenticated users
-    if current_user:
+    if current_user and not is_demo and profile.login.lower().strip() not in ("alex-dev-demo", "demo"):
         # Reconcile recommendations against persistent database records
         tracked = reconcile_recommendations(
             db=db,

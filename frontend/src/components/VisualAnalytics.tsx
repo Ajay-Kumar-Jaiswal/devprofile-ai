@@ -45,8 +45,8 @@ export const VisualAnalytics: React.FC<VisualAnalyticsProps> = ({
     language: repo.language || 'Unknown',
   }));
 
-  // Refined developer palette matching dark theme
-  const PALETTE = ['#8B5CF6', '#A78BFA', '#34D399', '#60A5FA', '#FBBF24', '#CBD5E1', '#8D9CB2'];
+  // Coordinated teal and turquoise doughnut & chart palette
+  const TEAL_PALETTE = ['#79D8D4', '#5BC2BD', '#43A8A3', '#318D88', '#25746F', '#1C5C58', '#154542'];
 
   const detectedLanguage = primaryLanguage || (languages[0]?.language ?? 'Software Engineering');
   const totalLangs = detectedLanguagesCount || languages.length;
@@ -64,19 +64,19 @@ export const VisualAnalytics: React.FC<VisualAnalyticsProps> = ({
           </h2>
         </div>
         <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
-          <BarChart3 className="w-3.5 h-3.5 text-violet-400" />
+          <BarChart3 className="w-3.5 h-3.5 text-teal-accent" />
           <span>Portfolio metrics and market alignment</span>
         </div>
       </div>
 
       {/* 2-Column Grid: Left Column is Repository Reach; Right Column has Career Opportunities + Language Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch min-w-0">
-        {/* Left Column: Repository Reach (Full Combined Height) */}
-        <div className="surface-card rounded-2xl p-4 sm:p-5 border border-slate-800 shadow-card flex flex-col justify-between space-y-4 h-full min-w-0">
+        {/* Left Column: Repository Reach / Activity (Full Combined Height) */}
+        <div className="surface-card rounded-2xl p-4 sm:p-5 border border-slate-800 shadow-card hover:border-[#477F7C] hover:shadow-subtle-glow transition-all duration-180 flex flex-col justify-between space-y-4 h-full min-w-0">
           <div>
             <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-400">
+                <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-accent">
                   <BarChart3 className="w-4 h-4" />
                 </div>
                 <div>
@@ -99,23 +99,23 @@ export const VisualAnalytics: React.FC<VisualAnalyticsProps> = ({
                     data={popularityData}
                     margin={{ top: 12, right: 12, left: -20, bottom: 20 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2A3850" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#36383A" vertical={false} />
                     <XAxis
                       dataKey="name"
-                      stroke="#8D9CB2"
+                      stroke="#909198"
                       fontSize={11}
                       tickLine={false}
                       interval={0}
                       angle={-15}
                       textAnchor="end"
                     />
-                    <YAxis stroke="#8D9CB2" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#909198" fontSize={11} tickLine={false} />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: '#111A2B',
-                        borderColor: '#2A3850',
+                        backgroundColor: '#242527',
+                        borderColor: '#36383A',
                         borderRadius: '10px',
-                        color: '#F1F5F9',
+                        color: '#F5F5F5',
                         fontSize: '11px',
                         padding: '6px 10px',
                       }}
@@ -124,10 +124,10 @@ export const VisualAnalytics: React.FC<VisualAnalyticsProps> = ({
                       verticalAlign="top"
                       align="right"
                       iconSize={8}
-                      wrapperStyle={{ fontSize: '11px', color: '#B0BDD0', paddingBottom: '8px' }}
+                      wrapperStyle={{ fontSize: '11px', color: '#B3B3B8', paddingBottom: '8px' }}
                     />
-                    <Bar dataKey="stars" name="Stars" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="forks" name="Forks" fill="#60A5FA" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="stars" name="Stars" fill="#79D8D4" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="forks" name="Forks" fill="#477F7C" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -147,7 +147,7 @@ export const VisualAnalytics: React.FC<VisualAnalyticsProps> = ({
         {/* Right Column: Stacked Career Opportunities (Top) + Language Distribution (Bottom) */}
         <div className="flex flex-col gap-4 justify-between min-w-0">
           {/* Top Panel: Career Opportunities */}
-          <div className="surface-card rounded-2xl p-4 sm:p-4.5 border border-slate-800 shadow-card flex flex-col justify-between space-y-3 min-w-0">
+          <div className="surface-card rounded-2xl p-4 sm:p-4.5 border border-slate-800 shadow-card hover:border-[#477F7C] hover:shadow-subtle-glow transition-all duration-180 flex flex-col justify-between space-y-3 min-w-0">
             <div className="space-y-2.5">
               <div className="flex items-center justify-between pb-2 border-b border-slate-800">
                 <div className="flex items-center gap-2">
@@ -209,10 +209,10 @@ export const VisualAnalytics: React.FC<VisualAnalyticsProps> = ({
           </div>
 
           {/* Bottom Panel: Language Distribution */}
-          <div className="surface-card rounded-2xl p-4 sm:p-4.5 border border-slate-800 shadow-card flex flex-col justify-between space-y-3 min-w-0">
+          <div className="surface-card rounded-2xl p-4 sm:p-4.5 border border-slate-800 shadow-card hover:border-[#477F7C] hover:shadow-subtle-glow transition-all duration-180 flex flex-col justify-between space-y-3 min-w-0">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-400">
+                <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-accent">
                   <PieIcon className="w-4 h-4" />
                 </div>
                 <div>
@@ -244,21 +244,21 @@ export const VisualAnalytics: React.FC<VisualAnalyticsProps> = ({
                         dataKey="repo_count"
                         nameKey="language"
                       >
-                        {languages.map((entry, index) => (
+                        {languages.map((_entry, index) => (
                           <Cell
                             key={`cell-${index}`}
-                            fill={entry.color || PALETTE[index % PALETTE.length]}
-                            stroke="#111A2B"
+                            fill={TEAL_PALETTE[index % TEAL_PALETTE.length]}
+                            stroke="#242527"
                             strokeWidth={2}
                           />
                         ))}
                       </Pie>
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: '#111A2B',
-                          borderColor: '#2A3850',
+                          backgroundColor: '#242527',
+                          borderColor: '#36383A',
                           borderRadius: '10px',
-                          color: '#F1F5F9',
+                          color: '#F5F5F5',
                           fontSize: '11px',
                           padding: '6px 10px',
                         }}
@@ -279,7 +279,7 @@ export const VisualAnalytics: React.FC<VisualAnalyticsProps> = ({
               {/* Right: Language list with progress bars (7 cols) */}
               <div className="sm:col-span-7 space-y-1.5">
                 {languages.slice(0, 4).map((lang, idx) => {
-                  const color = lang.color || PALETTE[idx % PALETTE.length];
+                  const color = TEAL_PALETTE[idx % TEAL_PALETTE.length];
                   return (
                     <div key={idx} className="space-y-0.5">
                       <div className="flex items-center justify-between text-xs">
@@ -288,7 +288,7 @@ export const VisualAnalytics: React.FC<VisualAnalyticsProps> = ({
                             className="w-2 h-2 rounded-full shrink-0"
                             style={{ backgroundColor: color }}
                           />
-                          <span className="text-slate-200 font-medium truncate">
+                          <span className="text-slate-100 font-medium truncate">
                             {lang.language}
                           </span>
                         </div>
@@ -296,7 +296,7 @@ export const VisualAnalytics: React.FC<VisualAnalyticsProps> = ({
                           {lang.percentage}%
                         </span>
                       </div>
-                      <div className="w-full bg-slate-900 rounded-full h-1 overflow-hidden">
+                      <div className="w-full bg-navy-900 border border-slate-700/50 rounded-full h-1 overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-500"
                           style={{

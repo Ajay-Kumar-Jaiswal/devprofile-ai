@@ -255,10 +255,10 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
               <div
                 key={run.id}
                 onClick={() => onLoadRun(run.id, run.analyzed_login)}
-                className={`surface-card p-5 rounded-2xl border transition-all cursor-pointer relative shadow-card hover:shadow-card-hover ${
+                className={`surface-card p-5 rounded-2xl border transition-all duration-180 cursor-pointer relative shadow-card hover:shadow-subtle-glow ${
                   isSelected
-                    ? 'border-violet-500 ring-2 ring-violet-500/20 bg-navy-900/90'
-                    : 'border-slate-800 hover:border-slate-700 bg-navy-900/60'
+                    ? 'border-violet-500 ring-2 ring-violet-500/20 bg-violet-900/40'
+                    : 'border-slate-800 hover:border-[#477F7C] bg-navy-900/60'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">

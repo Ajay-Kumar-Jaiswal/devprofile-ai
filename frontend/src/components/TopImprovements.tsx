@@ -167,14 +167,14 @@ export const TopImprovements: React.FC<TopImprovementsProps> = ({
           return (
             <div
               key={item.id}
-              className="surface-card p-4 sm:p-4.5 rounded-2xl border border-slate-800 shadow-card hover:border-slate-700 transition-colors"
+              className="surface-card p-4 sm:p-4.5 rounded-2xl border border-slate-800 shadow-card hover:border-[#477F7C] hover:shadow-subtle-glow transition-all duration-180"
             >
               <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 sm:gap-5">
                 {/* Left Side: Rank, Category, Title, Recruiter Impact & Affected Repos */}
                 <div className="space-y-2 flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     {/* Rank Pill */}
-                    <span className="flex items-center justify-center px-2 py-0.5 rounded-md bg-navy-950 border border-slate-800 text-xs font-mono font-bold text-white">
+                    <span className="flex items-center justify-center px-2 py-0.5 rounded-md bg-navy-900 border border-slate-800 text-xs font-mono font-bold text-white">
                       #{String(item.rank).padStart(2, '0')}
                     </span>
 
@@ -182,10 +182,10 @@ export const TopImprovements: React.FC<TopImprovementsProps> = ({
                     <span
                       className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider ${
                         isHigh
-                          ? 'bg-rose-500/15 text-rose-300 border border-rose-500/40'
+                          ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
                           : isMed
-                          ? 'bg-amber-500/15 text-amber-300 border border-amber-500/40'
-                          : 'bg-slate-800 text-slate-200 border border-slate-700'
+                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                          : 'bg-neutral-800 text-neutral-300 border border-neutral-700'
                       }`}
                     >
                       {item.priority} Priority
@@ -227,10 +227,10 @@ export const TopImprovements: React.FC<TopImprovementsProps> = ({
                           href={repo.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-navy-900 border border-slate-700/80 hover:border-violet-400 text-slate-200 hover:text-white font-mono text-[11px] font-medium transition-colors group"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-navy-900 border border-slate-800 hover:border-[#477F7C] text-slate-300 hover:text-white font-mono text-[11px] font-medium transition-colors group"
                         >
                           <span>{repo.name}</span>
-                          <ExternalLink className="w-2.5 h-2.5 text-slate-400 group-hover:text-violet-300" />
+                          <ExternalLink className="w-2.5 h-2.5 text-slate-400 group-hover:text-teal-accent" />
                         </a>
                       ))}
                     </div>
@@ -238,7 +238,7 @@ export const TopImprovements: React.FC<TopImprovementsProps> = ({
                 </div>
 
                 {/* Right Side: Concrete Action Box */}
-                <div className="w-full lg:w-80 lg:min-w-[300px] lg:shrink-0 p-3.5 rounded-xl bg-navy-900 border border-slate-700/80 flex flex-col justify-center space-y-1 self-stretch">
+                <div className="w-full lg:w-80 lg:min-w-[300px] lg:shrink-0 p-3.5 rounded-xl bg-navy-900 border border-slate-800 hover:border-[#477F7C]/60 flex flex-col justify-center space-y-1 self-stretch transition-colors">
                   <div className="flex items-center gap-1.5 text-emerald-400">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span className="text-[10px] font-mono font-bold uppercase tracking-wider">

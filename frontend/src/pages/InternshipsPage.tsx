@@ -31,11 +31,8 @@ import {
   unsaveInternship,
   syncInternships,
   getInternshipSources,
-  getGitHubLinkUrl,
   ApiError,
 } from '../services/api';
-import { useAuth } from '../context/AuthContext';
-import { GithubIcon } from '../components/GithubIcon';
 import type {
   InternshipListingSummaryOut,
   InternshipDetailOut,
@@ -44,7 +41,6 @@ import type {
 } from '../types/api';
 
 export const InternshipsPage: React.FC = () => {
-  const { user } = useAuth();
 
   // State
   const [listings, setListings] = useState<InternshipListingSummaryOut[]>([]);
@@ -68,10 +64,6 @@ export const InternshipsPage: React.FC = () => {
   const [showSourcesPanel, setShowSourcesPanel] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
-
-  // GitHub Account Linking state
-  const [isLinkingGitHub, setIsLinkingGitHub] = useState<boolean>(false);
-  const [linkError, setLinkError] = useState<string | null>(null);
 
   // Selected Detail Modal
   const [selectedListingId, setSelectedListingId] = useState<number | null>(null);
@@ -135,24 +127,6 @@ export const InternshipsPage: React.FC = () => {
   useEffect(() => {
     loadSources();
   }, [loadSources]);
-
-  // GitHub account linking handler
-  const handleLinkGitHub = async () => {
-    setIsLinkingGitHub(true);
-    setLinkError(null);
-    try {
-      const res = await getGitHubLinkUrl();
-      if (!res.is_configured || !res.auth_url) {
-        setLinkError(res.setup_instructions || 'GitHub OAuth is not configured on this server.');
-        return;
-      }
-      window.location.href = res.auth_url;
-    } catch (err: any) {
-      setLinkError(err?.message || 'Failed to initialize GitHub linking.');
-    } finally {
-      setIsLinkingGitHub(false);
-    }
-  };
 
   // Trigger Sync / Ingestion across official APIs
   const handleSyncSources = async () => {
@@ -341,21 +315,16 @@ export const InternshipsPage: React.FC = () => {
   return (
     <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* 1. Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-navy-900 border border-slate-800 flex items-center justify-center text-violet-400 shadow-subtle">
-              <Briefcase className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                Internship Matches
-              </h1>
-            </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
+        <div className="flex items-center gap-2.5">
+          <div className="h-9 w-9 rounded-xl bg-navy-900 border border-slate-800 flex items-center justify-center text-violet-400 shadow-subtle shrink-0">
+            <Briefcase className="w-5 h-5" />
           </div>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
-            Live student and early-career vacancies polled from official employer Greenhouse &amp; Lever APIs, matched deterministically against your GitHub profile.
-          </p>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              Internship Matches
+            </h1>
+          </div>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
@@ -388,55 +357,15 @@ export const InternshipsPage: React.FC = () => {
         </div>
       )}
 
-      {/* 2. GitHub Account Linking Banner (for unlinked users) */}
-      {user && !user.connected_github && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-navy-900 border border-slate-800 text-xs text-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-card animate-fadeIn">
-          <div className="flex items-start gap-3">
-            <div className="p-2.5 rounded-xl bg-navy-950 border border-slate-800 text-violet-400 shrink-0 mt-0.5">
-              <GithubIcon className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <span className="font-bold text-white text-sm block">Connect Your GitHub Account</span>
-              <p className="text-slate-300 text-xs mt-0.5 max-w-xl leading-relaxed">
-                Link your GitHub identity to enable automated repo skill extraction, candidate match scoring against live vacancies, and AI recruiter fit analysis.
-              </p>
-              {linkError && (
-                <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1 font-semibold">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span>{linkError}</span>
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-            <Link
-              to="/settings"
-              className="px-3.5 py-2 rounded-xl bg-navy-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold transition-colors"
-            >
-              Settings
-            </Link>
-            <button
-              type="button"
-              onClick={handleLinkGitHub}
-              disabled={isLinkingGitHub}
-              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-subtle border border-violet-500/30 flex items-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
-            >
-              <GithubIcon className="w-4 h-4 text-white" />
-              <span>{isLinkingGitHub ? 'Connecting...' : 'Link GitHub Account'}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 3. Unanalyzed Profile Banner (if candidate has linked account but no analysis yet) */}
-      {(!hasProfileAnalysis && (!user || user.connected_github)) && (
-        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* 2. Unanalyzed Profile Banner (if candidate has no analysis yet) */}
+      {!hasProfileAnalysis && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
           <div className="flex items-start gap-2.5">
             <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <div>
               <span className="font-bold text-amber-100 block">Personalized Matching Inactive</span>
               <p className="text-amber-200/80 text-[11px] mt-0.5">
-                Analyze your GitHub profile on the Dashboard to unlock customized skill alignment scores and match breakdowns.
+                Analyze a GitHub profile on the Dashboard to unlock customized skill alignment scores and match breakdowns.
               </p>
             </div>
           </div>
@@ -449,7 +378,7 @@ export const InternshipsPage: React.FC = () => {
         </div>
       )}
 
-      {/* 4. Configured Sources Overview Panel (Collapsible) */}
+      {/* 3. Configured Sources Overview Panel (Collapsible) */}
       {showSourcesPanel && (
         <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4 animate-fadeIn">
           <div className="flex items-center justify-between">
@@ -862,7 +791,7 @@ export const InternshipsPage: React.FC = () => {
               <div
                 key={item.id}
                 onClick={() => handleOpenDetail(item.id)}
-                className="surface-card p-5 sm:p-6 rounded-2xl border border-slate-800/90 hover:border-slate-700 transition-all cursor-pointer flex flex-col justify-between space-y-4 group shadow-card hover:shadow-card-hover"
+                className="surface-card p-5 sm:p-6 rounded-2xl border border-slate-800 hover:border-[#477F7C] hover:shadow-subtle-glow transition-all duration-180 cursor-pointer flex flex-col justify-between space-y-4 group shadow-card"
               >
                 {/* Header: Company, Source Pill, Match Score, Bookmark */}
                 <div className="space-y-3">
@@ -1028,8 +957,8 @@ export const InternshipsPage: React.FC = () => {
 
       {/* 6. Detail Modal */}
       {selectedListingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-sm animate-fadeIn">
-          <div className="glass-panel w-full max-w-3xl max-h-[90vh] rounded-3xl border border-slate-700/80 shadow-2xl flex flex-col overflow-hidden bg-navy-950">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B0D12]/70 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-3xl max-h-[90vh] rounded-3xl border border-slate-400/20 shadow-2xl flex flex-col overflow-hidden bg-[#101723]/80 backdrop-blur-2xl">
             {/* Modal Header */}
             <div className="p-6 border-b border-slate-800 flex items-start justify-between gap-4 bg-navy-900/60">
               {isLoadingDetail ? (

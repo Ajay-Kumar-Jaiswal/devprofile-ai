@@ -74,7 +74,7 @@ export const AuditAiSynthesisSection: React.FC<AuditAiSynthesisSectionProps> = (
               type="button"
               onClick={handleTriggerRetry}
               disabled={isLoadingAi || cooldown > 0}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-950 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-mono text-[11px] transition-colors disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-950 border border-slate-800 hover:border-[#477F7C] text-slate-300 hover:text-white font-mono text-[11px] transition-all duration-180 disabled:opacity-50 cursor-pointer"
               title={cooldown > 0 ? `Wait ${cooldown}s` : 'Refresh AI synthesis'}
             >
               <RefreshCw className={`w-3 h-3 ${isLoadingAi || cooldown > 0 ? 'animate-spin' : ''}`} />
@@ -112,7 +112,7 @@ export const AuditAiSynthesisSection: React.FC<AuditAiSynthesisSectionProps> = (
       {!isLoadingAi && analysis && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 min-w-0">
           {/* Card 1: Key Strengths */}
-          <div className="surface-card p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-card flex flex-col justify-between space-y-3.5 hover:border-slate-700 transition-colors min-w-0 overflow-hidden">
+          <div className="surface-card p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-card hover:border-[#477F7C] hover:shadow-subtle-glow transition-all duration-180 flex flex-col justify-between space-y-3.5 min-w-0 overflow-hidden">
             <div className="space-y-3">
               <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
                 <div className="flex items-center gap-2">
@@ -121,7 +121,7 @@ export const AuditAiSynthesisSection: React.FC<AuditAiSynthesisSectionProps> = (
                   </div>
                   <h3 className="font-bold text-white text-sm">Key Strengths</h3>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                   Verified
                 </span>
               </div>
@@ -149,7 +149,7 @@ export const AuditAiSynthesisSection: React.FC<AuditAiSynthesisSectionProps> = (
           </div>
 
           {/* Card 2: Growth Opportunities */}
-          <div className="surface-card p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-card flex flex-col justify-between space-y-3.5 hover:border-slate-700 transition-colors min-w-0 overflow-hidden">
+          <div className="surface-card p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-card hover:border-[#477F7C] hover:shadow-subtle-glow transition-all duration-180 flex flex-col justify-between space-y-3.5 min-w-0 overflow-hidden">
             <div className="space-y-3">
               <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
                 <div className="flex items-center gap-2">
@@ -158,7 +158,7 @@ export const AuditAiSynthesisSection: React.FC<AuditAiSynthesisSectionProps> = (
                   </div>
                   <h3 className="font-bold text-white text-sm">Growth Opportunities</h3>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/40">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
                   Actionable
                 </span>
               </div>
@@ -188,7 +188,7 @@ export const AuditAiSynthesisSection: React.FC<AuditAiSynthesisSectionProps> = (
           </div>
 
           {/* Card 3: Overall Synthesis */}
-          <div className="surface-card p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-card flex flex-col justify-between space-y-3.5 hover:border-slate-700 transition-colors min-w-0 overflow-hidden">
+          <div className="surface-card p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-card hover:border-[#477F7C] hover:shadow-subtle-glow transition-all duration-180 flex flex-col justify-between space-y-3.5 min-w-0 overflow-hidden">
             <div className="space-y-3">
               <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
                 <div className="flex items-center gap-2">
@@ -197,12 +197,12 @@ export const AuditAiSynthesisSection: React.FC<AuditAiSynthesisSectionProps> = (
                   </div>
                   <h3 className="font-bold text-white text-sm">Overall Synthesis</h3>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-violet-500/15 text-violet-300 border border-violet-500/40">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-violet-500/10 text-violet-300 border border-violet-500/30">
                   AI Dossier
                 </span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-navy-900 border border-violet-500/30">
+              <div className="p-3.5 rounded-xl bg-navy-900 border border-border">
                 <p className="text-xs text-slate-100 font-serif italic leading-relaxed">
                   &ldquo;{analysis.summary}&rdquo;
                 </p>

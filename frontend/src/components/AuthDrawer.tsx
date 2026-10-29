@@ -165,13 +165,13 @@ export const AuthDrawer: React.FC = () => {
     >
       {/* Darkened backdrop without application blur */}
       <div
-        className="fixed inset-0 bg-navy-950/80 transition-opacity duration-200"
+        className="fixed inset-0 bg-[#0B0D12]/70 backdrop-blur-sm transition-opacity duration-200"
         onClick={closeAuthDrawer}
         aria-hidden="true"
       />
 
       {/* Centered Authentication Card */}
-      <div className="relative w-full max-w-[440px] my-auto bg-navy-900 border border-slate-800/90 rounded-2xl shadow-2xl shadow-black/70 overflow-hidden z-10 transition-all duration-200">
+      <div className="relative w-full max-w-[440px] my-auto bg-[#101723]/75 backdrop-blur-xl border border-[rgba(148,163,184,0.18)] rounded-2xl shadow-2xl shadow-black/70 overflow-hidden z-10 transition-all duration-200">
         {/* Subtle ambient accent glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-16 bg-violet-500/10 rounded-full blur-2xl pointer-events-none" />
 
@@ -188,7 +188,7 @@ export const AuthDrawer: React.FC = () => {
         <div className="p-6 sm:p-7 space-y-5">
           {/* 1. DevProfile.AI Brand Mark */}
           <div className="flex items-center justify-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-navy-950 border border-slate-700/80 flex items-center justify-center text-violet-400 shadow-subtle">
+            <div className="h-9 w-9 rounded-xl bg-navy-950 border border-[rgba(148,163,184,0.18)] flex items-center justify-center text-violet-400 shadow-subtle">
               <Terminal className="w-4.5 h-4.5 text-white" />
             </div>
             <span className="font-extrabold text-white text-lg tracking-tight">
@@ -209,7 +209,7 @@ export const AuthDrawer: React.FC = () => {
           </div>
 
           {/* 3. Sign In and Sign Up Tabs (Segmented Switch) */}
-          <div className="grid grid-cols-2 p-1 rounded-xl bg-navy-950/90 border border-slate-800/90 text-xs font-semibold">
+          <div className="grid grid-cols-2 p-1 rounded-xl bg-navy-950/90 border border-[rgba(148,163,184,0.18)] text-xs font-semibold">
             <button
               type="button"
               onClick={() => {
@@ -248,7 +248,7 @@ export const AuthDrawer: React.FC = () => {
               type="button"
               onClick={handleGitHubOAuth}
               disabled={isOauthLoading}
-              className="w-full flex items-center justify-center gap-2.5 h-10 px-4 rounded-xl border border-slate-700/80 bg-navy-950/60 hover:bg-slate-800 hover:border-slate-600 text-white font-medium text-xs sm:text-sm transition-all focus:outline-none focus:ring-2 focus:ring-violet-500/40 disabled:opacity-60 shadow-sm"
+              className="w-full flex items-center justify-center gap-2.5 h-10 px-4 rounded-xl border border-[rgba(148,163,184,0.18)] bg-navy-950/60 hover:bg-slate-800 hover:border-slate-600 text-white font-medium text-xs sm:text-sm transition-all focus:outline-none focus:ring-2 focus:ring-violet-500/40 disabled:opacity-60 shadow-sm"
             >
               {isOauthLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
@@ -272,11 +272,11 @@ export const AuthDrawer: React.FC = () => {
 
           {/* 5. Subtle Divider Labelled "OR CONTINUE WITH EMAIL" */}
           <div className="relative flex items-center justify-center my-3.5">
-            <div className="border-t border-slate-800 w-full" />
+            <div className="border-t border-[rgba(148,163,184,0.18)] w-full" />
             <span className="bg-navy-900 px-3 text-[10px] uppercase font-semibold tracking-wider text-slate-400 shrink-0">
               Or continue with email
             </span>
-            <div className="border-t border-slate-800 w-full" />
+            <div className="border-t border-[rgba(148,163,184,0.18)] w-full" />
           </div>
 
           {/* Error Banner */}
@@ -302,7 +302,7 @@ export const AuthDrawer: React.FC = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="developer@campus.edu"
                   required
-                  className="w-full h-10 pl-10 pr-4 rounded-xl bg-navy-950/60 border border-slate-700/70 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
+                  className="w-full h-10 pl-10 pr-4 rounded-xl bg-navy-950/60 border border-[rgba(148,163,184,0.18)] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
                 />
               </div>
             </div>
@@ -335,7 +335,7 @@ export const AuthDrawer: React.FC = () => {
                   placeholder="••••••••"
                   required
                   minLength={mode === 'signup' ? 8 : undefined}
-                  className="w-full h-10 pl-10 pr-10 rounded-xl bg-navy-950/60 border border-slate-700/70 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
+                  className="w-full h-10 pl-10 pr-10 rounded-xl bg-navy-950/60 border border-[rgba(148,163,184,0.18)] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
                 />
                 <button
                   type="button"
@@ -362,7 +362,7 @@ export const AuthDrawer: React.FC = () => {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Alex Developer"
-                      className="w-full h-10 pl-10 pr-4 rounded-xl bg-navy-950/60 border border-slate-700/70 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
+                      className="w-full h-10 pl-10 pr-4 rounded-xl bg-navy-950/60 border border-[rgba(148,163,184,0.18)] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
                     />
                   </div>
                 </div>
@@ -378,7 +378,7 @@ export const AuthDrawer: React.FC = () => {
                       value={defaultProfile}
                       onChange={(e) => setDefaultProfile(e.target.value)}
                       placeholder="e.g. octocat or https://github.com/octocat"
-                      className="w-full h-10 pl-10 pr-4 rounded-xl bg-navy-950/60 border border-slate-700/70 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
+                      className="w-full h-10 pl-10 pr-4 rounded-xl bg-navy-950/60 border border-[rgba(148,163,184,0.18)] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
                     />
                   </div>
                   <p className="mt-1 text-[11px] text-slate-400">
@@ -406,7 +406,7 @@ export const AuthDrawer: React.FC = () => {
           </form>
 
           {/* 9. Existing Links for Switching Between Sign-In and Sign-Up */}
-          <div className="pt-3.5 border-t border-slate-800/80 text-center text-xs text-slate-400">
+          <div className="pt-3.5 border-t border-[rgba(148,163,184,0.18)] text-center text-xs text-slate-400">
             {mode === 'signin' ? (
               <p>
                 Don't have an account?{' '}

@@ -4,9 +4,9 @@ import { Terminal, ArrowLeft, KeyRound } from 'lucide-react';
 
 export const ForgotPasswordPage: React.FC = () => {
   return (
-    <div className="min-h-[calc(100vh-8rem)] bg-navy-950 flex flex-col justify-center items-center py-10 px-4 sm:px-6 lg:px-8 text-slate-100 selection:bg-violet-500/30">
+    <div className="min-h-[calc(100vh-8rem)] bg-transparent flex flex-col justify-center items-center py-10 px-4 sm:px-6 lg:px-8 text-slate-100 selection:bg-violet-500/30">
       {/* Centered Authentication Card */}
-      <div className="relative w-full max-w-[440px] bg-navy-900 border border-slate-800/90 rounded-2xl shadow-2xl shadow-black/70 overflow-hidden transition-all duration-200 animate-fadeIn">
+      <div className="relative w-full max-w-[440px] bg-[#101723]/65 backdrop-blur-xl border border-[rgba(148,163,184,0.18)] rounded-2xl shadow-2xl shadow-black/70 overflow-hidden transition-all duration-200 animate-fadeIn">
         {/* Subtle decorative ambient glow at top */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-16 bg-violet-500/10 rounded-full blur-2xl pointer-events-none" />
 
@@ -14,7 +14,7 @@ export const ForgotPasswordPage: React.FC = () => {
           {/* DevProfile.AI Brand Mark */}
           <div className="flex items-center justify-center gap-2.5">
             <Link to="/" className="inline-flex items-center gap-2.5 group">
-              <div className="h-9 w-9 rounded-xl bg-navy-950 border border-slate-700/80 group-hover:border-violet-500/50 flex items-center justify-center text-violet-400 transition-colors shadow-subtle">
+              <div className="h-9 w-9 rounded-xl bg-navy-950 border border-[rgba(148,163,184,0.18)] group-hover:border-violet-500/50 flex items-center justify-center text-violet-400 transition-colors shadow-subtle">
                 <Terminal className="w-4.5 h-4.5 text-white" />
               </div>
               <span className="font-extrabold text-white text-lg tracking-tight">
@@ -25,7 +25,7 @@ export const ForgotPasswordPage: React.FC = () => {
 
           {/* Key Icon Emblem */}
           <div className="flex justify-center">
-            <div className="w-12 h-12 rounded-2xl bg-navy-950 border border-slate-800 flex items-center justify-center text-violet-400 shadow-subtle">
+            <div className="w-12 h-12 rounded-2xl bg-navy-950 border border-[rgba(148,163,184,0.18)] flex items-center justify-center text-violet-400 shadow-subtle">
               <KeyRound className="w-6 h-6" />
             </div>
           </div>
@@ -52,7 +52,7 @@ export const ForgotPasswordPage: React.FC = () => {
           </div>
 
           {/* Quick Sign In / Sign Up switch */}
-          <div className="pt-3.5 border-t border-slate-800/80 text-center text-xs text-slate-400">
+          <div className="pt-3.5 border-t border-[rgba(148,163,184,0.18)] text-center text-xs text-slate-400">
             <p>
               Don't have an account?{' '}
               <Link

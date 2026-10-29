@@ -29,14 +29,21 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     }
   }, [currentUsername]);
 
+  const extractHandle = (val: string): string => {
+    const trimmed = val.trim();
+    const urlMatch = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38})(?:\/.*)?$/i);
+    if (urlMatch && urlMatch[1]) return urlMatch[1];
+    return trimmed.startsWith('@') ? trimmed.slice(1).trim() : trimmed;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = inputVal.trim();
-    if (trimmed) {
-      if (trimmed.toLowerCase() === 'alex-dev-demo' || trimmed.toLowerCase() === 'demo') {
+    const handle = extractHandle(inputVal);
+    if (handle) {
+      if (handle.toLowerCase() === 'alex-dev-demo' || handle.toLowerCase() === 'demo') {
         onLoadDemo();
       } else {
-        onAnalyze(trimmed);
+        onAnalyze(handle);
       }
     }
   };
@@ -67,26 +74,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </span>
         </h1>
 
-        {/* Subtitle */}
-        <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
-          Deterministic 5-pillar repository quality scoring, tech stack verification, and actionable AI roadmaps engineered for technical recruitment readiness.
-        </p>
-
         {/* Search Bar Form */}
-        <form onSubmit={handleSubmit} className="max-w-xl mx-auto pt-2">
-          <div className="relative flex items-center p-1.5 rounded-2xl bg-navy-900 border border-slate-700/90 focus-within:border-violet-500 focus-within:ring-1 focus-within:ring-violet-500 shadow-card transition-all">
-            <div className="pl-3.5 pr-2 text-slate-400 select-none flex items-center gap-1.5 font-mono text-xs text-slate-400">
-              <span className="text-violet-400 font-bold">$</span>
-              <span>audit</span>
-            </div>
-
+        <form onSubmit={handleSubmit} className="max-w-xl mx-auto pt-1">
+          <div className="relative flex items-center p-1.5 rounded-2xl bg-input backdrop-blur-xl border border-border focus-within:border-violet-500 focus-within:ring-1 focus-within:ring-violet-500/20 shadow-subtle transition-all duration-180">
             <input
               type="text"
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
-              placeholder="Enter GitHub handle (e.g. octocat)"
+              placeholder="Enter GitHub URL or handle"
               disabled={isLoading}
-              className="w-full bg-transparent text-white placeholder-slate-500 font-mono text-xs sm:text-sm focus:outline-none py-2 px-2 disabled:opacity-50"
+              className="w-full bg-transparent text-white placeholder-slate-500 font-mono text-xs sm:text-sm focus:outline-none py-2 px-3 disabled:opacity-50"
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck="false"
@@ -120,7 +117,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               key={ex.username}
               onClick={() => handleSelectExample(ex.username, ex.isDemo)}
               disabled={isLoading}
-              className="px-2.5 py-1 rounded-lg bg-navy-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 transition-colors font-mono text-[11px] disabled:opacity-40"
+              className="px-2.5 py-1 rounded-lg bg-card hover:bg-neutral-900 text-slate-300 hover:text-white border border-border hover:border-[#477F7C] transition-all duration-180 font-mono text-[11px] disabled:opacity-40"
             >
               {ex.isDemo ? 'Alex Dev (Demo)' : `@${ex.username}`}
             </button>

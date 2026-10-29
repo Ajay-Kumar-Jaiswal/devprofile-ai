@@ -509,6 +509,19 @@ export async function clearAnalysisHistory(): Promise<{ message: string; deleted
   return await res.json();
 }
 
+export async function getTrackedProfiles(): Promise<string[]> {
+  const res = await safeFetch(`${API_BASE_URL}/api/recommendations/profiles`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
 export async function getTrackedRecommendations(status?: string, username?: string): Promise<TrackedRecommendationOut[]> {
   const params = new URLSearchParams();
   if (status) params.append('status', status);

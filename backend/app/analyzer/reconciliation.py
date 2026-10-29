@@ -31,6 +31,10 @@ def reconcile_recommendations(
       7. Repeated analyses of unchanged data create ZERO duplicate recommendations.
     """
     clean_login = analyzed_login.lower().strip()
+    # Demo profiles must NEVER create or persist TrackedRecommendation or RecommendationEvent records
+    if clean_login in ("alex-dev-demo", "demo") or not is_live_data_reliable:
+        return []
+
     now = utcnow()
 
     # Query all existing tracked recommendations for this user and analyzed login

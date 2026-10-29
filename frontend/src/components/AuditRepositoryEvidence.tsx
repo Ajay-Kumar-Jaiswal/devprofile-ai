@@ -52,10 +52,10 @@ export const AuditRepositoryEvidence: React.FC<AuditRepositoryEvidenceProps> = (
   const hasMore = filteredRepos.length > displayLimit;
 
   const getScoreBadge = (score: number) => {
-    if (score >= 80) return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40';
-    if (score >= 60) return 'bg-violet-500/15 text-violet-300 border-violet-500/40';
-    if (score >= 40) return 'bg-amber-500/15 text-amber-300 border-amber-500/40';
-    return 'bg-rose-500/15 text-rose-300 border-rose-500/40';
+    if (score >= 80) return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+    if (score >= 60) return 'bg-violet-500/10 text-violet-300 border border-violet-500/30';
+    if (score >= 40) return 'bg-amber-500/10 text-amber-400 border border-amber-500/30';
+    return 'bg-rose-500/10 text-rose-400 border border-rose-500/30';
   };
 
   return (
@@ -153,7 +153,7 @@ export const AuditRepositoryEvidence: React.FC<AuditRepositoryEvidenceProps> = (
             return (
               <div
                 key={repo.id}
-                className="surface-card p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-card flex flex-col justify-between space-y-3.5 hover:border-slate-700 transition-colors group min-w-0 overflow-hidden"
+                className="surface-card p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-card hover:border-[#477F7C] hover:shadow-subtle-glow transition-all duration-180 group min-w-0 overflow-hidden"
               >
                 <div className="space-y-2.5">
                   {/* Top Bar: Repo Name & Quality Score */}
@@ -254,24 +254,24 @@ export const AuditRepositoryEvidence: React.FC<AuditRepositoryEvidenceProps> = (
                   {/* Hygiene checklist chips */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                     {repo.has_readme ? (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
                         <CheckCircle2 className="w-2.5 h-2.5" />
                         <span>README</span>
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/15 text-rose-300 border border-rose-500/40 flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/10 text-rose-400 border border-rose-500/30 flex items-center gap-1">
                         <AlertTriangle className="w-2.5 h-2.5" />
                         <span>No README</span>
                       </span>
                     )}
 
                     {repo.has_license ? (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
                         <CheckCircle2 className="w-2.5 h-2.5" />
                         <span>{repo.license_name || 'License'}</span>
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1">
                         <AlertTriangle className="w-2.5 h-2.5" />
                         <span>Unlicensed</span>
                       </span>
@@ -295,7 +295,7 @@ export const AuditRepositoryEvidence: React.FC<AuditRepositoryEvidenceProps> = (
             <button
               type="button"
               onClick={() => setDisplayLimit((prev) => prev + 6)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-navy-950 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 text-xs font-mono transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-card border border-border text-slate-300 hover:text-white hover:border-[#477F7C] hover:shadow-subtle-glow text-xs font-mono transition-all duration-180 cursor-pointer"
             >
               <span>Show More Repositories ({filteredRepos.length - displayLimit} remaining)</span>
               <ChevronDown className="w-3.5 h-3.5" />
@@ -304,7 +304,7 @@ export const AuditRepositoryEvidence: React.FC<AuditRepositoryEvidenceProps> = (
             <button
               type="button"
               onClick={() => setDisplayLimit(6)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-navy-950 border border-slate-800 text-slate-400 hover:text-white text-xs font-mono transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-card border border-border text-slate-400 hover:text-white hover:border-[#477F7C] hover:shadow-subtle-glow text-xs font-mono transition-all duration-180 cursor-pointer"
             >
               <span>Show Less</span>
               <ChevronUp className="w-3.5 h-3.5" />

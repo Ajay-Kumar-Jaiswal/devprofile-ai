@@ -307,10 +307,10 @@ export const HistoryPage: React.FC = () => {
                 return (
                   <div
                     key={run.id}
-                    className={`surface-card p-5 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-card hover:shadow-card-hover ${
+                    className={`surface-card p-5 rounded-2xl border transition-all duration-180 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-card hover:shadow-subtle-glow ${
                       isSelected
-                        ? 'border-violet-500/80 bg-violet-950/20 shadow-subtle'
-                        : 'border-slate-800 hover:border-slate-700'
+                        ? 'border-violet-500 bg-violet-900/40 shadow-subtle'
+                        : 'border-slate-800 hover:border-[#477F7C]'
                     }`}
                   >
                     {/* Left: Checkbox + User handle + Timestamp */}
@@ -462,7 +462,7 @@ export const HistoryPage: React.FC = () => {
 
       {/* Comparison Modal */}
       {comparisonModalOpen && comparisonData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-sm overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B0D12]/70 backdrop-blur-md overflow-y-auto">
           <div className="glass-panel w-full max-w-3xl rounded-2xl border border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6 my-8 animate-fadeIn">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
@@ -615,8 +615,8 @@ export const HistoryPage: React.FC = () => {
 
       {/* Clear All History Confirmation Modal */}
       {clearModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-sm">
-          <div className="glass-panel w-full max-w-md rounded-2xl border border-rose-500/30 bg-navy-900 shadow-2xl p-6 space-y-4 animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B0D12]/70 backdrop-blur-md">
+          <div className="glass-panel w-full max-w-md rounded-2xl border border-rose-500/30 shadow-2xl p-6 space-y-4 animate-fadeIn">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30">
                 <Trash2 className="w-5 h-5" />

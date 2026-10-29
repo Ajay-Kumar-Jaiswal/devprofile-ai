@@ -52,7 +52,7 @@ export const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({
           </div>
           <div>
             <h3 className="text-lg font-bold text-white tracking-tight">
-              Prioritized Placement Improvements
+              Improvements
             </h3>
             <p className="text-xs text-slate-400">
               Targeted optimizations generated directly from your profile data
@@ -84,7 +84,7 @@ export const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({
           {filteredRecs.map((rec) => (
             <div
               key={rec.id}
-              className="p-5 rounded-xl bg-navy-900/60 border border-slate-800/80 hover:border-slate-700 transition-all space-y-3"
+              className="p-5 rounded-xl bg-navy-900/60 border border-slate-800 hover:border-[#477F7C] hover:shadow-subtle-glow transition-all duration-180 space-y-3"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5">

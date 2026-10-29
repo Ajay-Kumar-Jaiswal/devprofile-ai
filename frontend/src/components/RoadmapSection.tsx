@@ -77,7 +77,7 @@ export const RoadmapSection: React.FC<RoadmapSectionProps> = ({ roadmap7, roadma
               {idx + 1}
             </div>
 
-            <div className="p-4 sm:p-5 rounded-xl bg-navy-900/60 border border-slate-800/80 group-hover:border-slate-700 transition-all space-y-2.5">
+            <div className="p-4 sm:p-5 rounded-xl bg-navy-900/60 border border-slate-800 group-hover:border-[#477F7C] group-hover:shadow-subtle-glow transition-all duration-180 space-y-2.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-violet-500/10 text-violet-300 border border-violet-500/20">
                   {step.day_or_week}

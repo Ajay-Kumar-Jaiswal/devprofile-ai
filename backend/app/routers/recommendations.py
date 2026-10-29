@@ -49,6 +49,27 @@ def rec_to_out(rec: TrackedRecommendation) -> TrackedRecommendationOut:
 
 
 @router.get(
+    "/profiles",
+    response_model=List[str],
+    summary="List distinct analyzed GitHub usernames for current user",
+)
+async def list_analyzed_profiles(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    results = (
+        db.query(TrackedRecommendation.analyzed_login)
+        .filter(
+            TrackedRecommendation.user_id == current_user.id,
+            ~TrackedRecommendation.analyzed_login.in_(["alex-dev-demo", "demo"]),
+        )
+        .distinct()
+        .all()
+    )
+    return [r[0] for r in results if r[0]]
+
+
+@router.get(
     "",
     response_model=List[TrackedRecommendationOut],
     summary="List tracked recommendations for current user with filtering by status and username",
@@ -59,7 +80,10 @@ async def list_recommendations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    query = db.query(TrackedRecommendation).filter(TrackedRecommendation.user_id == current_user.id)
+    query = db.query(TrackedRecommendation).filter(
+        TrackedRecommendation.user_id == current_user.id,
+        ~TrackedRecommendation.analyzed_login.in_(["alex-dev-demo", "demo"]),
+    )
 
     if username:
         query = query.filter(TrackedRecommendation.analyzed_login == username.lower().strip())

@@ -16,32 +16,28 @@ export const PortfolioScoreCard: React.FC<PortfolioScoreCardProps> = ({ score })
           label: 'Strong Area',
           text: 'text-emerald-400',
           bar: 'bg-emerald-400',
-          badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
-          border: 'border-emerald-500/30 hover:border-emerald-500/50',
+          badge: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30',
         };
       case 'good':
         return {
           label: val >= 16 ? 'Solid' : 'Developing',
           text: 'text-violet-400',
           bar: 'bg-violet-400',
-          badge: 'bg-violet-500/15 text-violet-300 border-violet-500/40',
-          border: 'border-slate-800 hover:border-slate-700',
+          badge: 'bg-violet-500/10 text-violet-300 border border-violet-500/30',
         };
       case 'average':
         return {
           label: 'Needs Focus',
           text: 'text-amber-400',
           bar: 'bg-amber-400',
-          badge: 'bg-amber-500/15 text-amber-300 border-amber-500/40',
-          border: 'border-amber-500/30 hover:border-amber-500/50',
+          badge: 'bg-amber-500/10 text-amber-400 border border-amber-500/30',
         };
       default:
         return {
           label: 'Critical Gap',
           text: 'text-rose-400',
           bar: 'bg-rose-400',
-          badge: 'bg-rose-500/15 text-rose-300 border-rose-500/40',
-          border: 'border-rose-500/30 hover:border-rose-500/50',
+          badge: 'bg-rose-500/10 text-rose-400 border border-rose-500/30',
         };
     }
   };
@@ -83,7 +79,7 @@ export const PortfolioScoreCard: React.FC<PortfolioScoreCardProps> = ({ score })
           return (
             <div
               key={idx}
-              className={`surface-card p-4 rounded-2xl border shadow-card flex flex-col justify-between space-y-3 transition-colors ${badge.border} min-w-0`}
+              className="surface-card p-4 rounded-2xl border border-border hover:border-[#477F7C] hover:shadow-subtle-glow shadow-card flex flex-col justify-between space-y-3 transition-all duration-180 min-w-0"
             >
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-1.5">
@@ -112,7 +108,7 @@ export const PortfolioScoreCard: React.FC<PortfolioScoreCardProps> = ({ score })
                 </div>
 
                 {/* Sleek 2px progress bar */}
-                <div className="w-full bg-slate-900 rounded-full h-1 overflow-hidden">
+                <div className="w-full bg-neutral-800 rounded-full h-1 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-700 ${badge.bar}`}
                     style={{ width: `${Math.max(5, cat.percentage)}%` }}
