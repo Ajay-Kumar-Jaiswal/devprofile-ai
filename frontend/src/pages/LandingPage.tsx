@@ -77,12 +77,12 @@ export const LandingPage: React.FC = () => {
 
   return (
     <div
-      className="relative w-full min-h-[calc(100vh-68px)] sm:min-h-[calc(100vh-76px)] bg-transparent flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8"
+      className="relative w-full min-h-[calc(100vh-68px)] sm:min-h-[calc(100vh-80px)] flex-1 bg-transparent flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-2 sm:py-4 box-border"
     >
       {/* Main Hero Content */}
-      <main className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center justify-center text-center py-6 sm:py-10 my-auto">
+      <main className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center justify-center text-center my-auto -translate-y-6 sm:-translate-y-11 lg:-translate-y-13">
         {/* Globe Icon Container */}
-        <div className="mb-5 sm:mb-8">
+        <div className="mb-4 sm:mb-6">
           <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-2xl bg-[#101723]/60 backdrop-blur-md border border-[rgba(148,163,184,0.18)] shadow-[0_0_28px_rgba(124,58,237,0.12)] flex items-center justify-center mx-auto transition-transform hover:scale-105 duration-200">
             <Globe className="w-5.5 h-5.5 sm:w-7 sm:h-7 text-[#A2A9BB] stroke-[1.5]" aria-hidden="true" />
           </div>
@@ -103,7 +103,7 @@ export const LandingPage: React.FC = () => {
         </p>
 
         {/* GitHub URL / Handle Input Container */}
-        <div className="w-full max-w-[760px] sm:max-w-[800px] mt-6 sm:mt-10 mx-auto relative max-w-full">
+        <div className="w-full max-w-[760px] sm:max-w-[800px] mt-5 sm:mt-7 mx-auto relative max-w-full">
           {/* Subtle purple backlight behind the button area */}
           <div className="absolute right-4 top-1/2 -translate-y-1/2 w-44 h-16 bg-violet-600/18 blur-xl rounded-full pointer-events-none hidden sm:block" />
 
