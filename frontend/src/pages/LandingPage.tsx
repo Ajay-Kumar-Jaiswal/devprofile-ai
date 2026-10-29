@@ -83,7 +83,7 @@ export const LandingPage: React.FC = () => {
       <main className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center justify-center text-center py-6 sm:py-10 my-auto">
         {/* Globe Icon Container */}
         <div className="mb-5 sm:mb-8">
-          <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-2xl bg-[#101723]/60 backdrop-blur-md border border-slate-400/20 shadow-[0_0_28px_rgba(124,58,237,0.12)] flex items-center justify-center mx-auto transition-transform hover:scale-105 duration-200">
+          <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-2xl bg-[#101723]/60 backdrop-blur-md border border-[rgba(148,163,184,0.18)] shadow-[0_0_28px_rgba(124,58,237,0.12)] flex items-center justify-center mx-auto transition-transform hover:scale-105 duration-200">
             <Globe className="w-5.5 h-5.5 sm:w-7 sm:h-7 text-[#A2A9BB] stroke-[1.5]" aria-hidden="true" />
           </div>
         </div>
@@ -109,7 +109,7 @@ export const LandingPage: React.FC = () => {
 
           <form
             onSubmit={handleSubmit}
-            className="relative flex flex-col sm:flex-row items-stretch sm:items-center bg-[#101723]/60 backdrop-blur-xl border border-slate-400/20 focus-within:border-violet-500/80 focus-within:ring-2 focus-within:ring-violet-500/20 rounded-2xl p-2 sm:p-2.5 shadow-[0_4px_30px_rgba(0,0,0,0.6)] transition-all duration-200 gap-2 sm:gap-0 w-full max-w-full overflow-hidden"
+            className="relative flex flex-col sm:flex-row items-stretch sm:items-center bg-[#101723]/60 backdrop-blur-xl border border-[rgba(148,163,184,0.18)] focus-within:border-violet-500/80 focus-within:ring-2 focus-within:ring-violet-500/20 rounded-2xl p-2 sm:p-2.5 shadow-[0_4px_30px_rgba(0,0,0,0.6)] transition-all duration-200 gap-2 sm:gap-0 w-full max-w-full overflow-hidden"
           >
             <div className="flex items-center flex-1 min-w-0 w-full overflow-hidden pl-1.5 sm:pl-3">
               <Link2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#78839B] shrink-0 mr-2 sm:mr-3" aria-hidden="true" />

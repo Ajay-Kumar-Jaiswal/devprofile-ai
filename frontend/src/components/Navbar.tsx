@@ -105,7 +105,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onLoadDemo, isLoading = false })
   const isLanding = location.pathname === '/';
 
   return (
-    <header className="sticky top-0 z-40 w-full max-w-full transition-colors border-b border-[#232736]/70 bg-[#0B0D12]/85 backdrop-blur-md">
+    <header
+      className={`sticky top-0 z-40 w-full max-w-full transition-colors ${
+        isLanding
+          ? 'bg-transparent border-b border-transparent'
+          : 'border-b border-[#232736]/70 bg-[#0B0D12]/85 backdrop-blur-md'
+      }`}
+    >
       <div className={`max-w-[1360px] w-full mx-auto px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-2 sm:gap-4 transition-all ${isLanding ? 'h-[68px] sm:h-20' : 'h-16'}`}>
         {/* Brand Logo & Name */}
         <div className="flex items-center gap-6">
