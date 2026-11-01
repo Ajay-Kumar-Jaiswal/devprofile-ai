@@ -288,7 +288,7 @@ export const HistoryPage: React.FC = () => {
                   run.score_tier.toLowerCase().includes(q)
                 );
               })
-              .map((run, idx) => {
+              .map((run) => {
                 const isSelected = selectedRunIds.includes(run.id);
                 const formattedDate = new Date(run.created_at).toLocaleDateString('en-US', {
                   year: 'numeric',
@@ -297,12 +297,6 @@ export const HistoryPage: React.FC = () => {
                   hour: '2-digit',
                   minute: '2-digit',
                 });
-
-                // Calculate real delta compared to prior run for the same analyzed login
-                const priorRun = runs.slice(idx + 1).find(
-                  (r) => r.analyzed_login.toLowerCase() === run.analyzed_login.toLowerCase()
-                );
-                const delta = priorRun ? run.overall_score - priorRun.overall_score : null;
 
                 return (
                   <div
@@ -358,7 +352,7 @@ export const HistoryPage: React.FC = () => {
                         <span className="truncate">{formattedDate}</span>
                       </div>
 
-                      {/* Score & Tier Banner + Delta */}
+                      {/* Score & Tier Banner */}
                       <div className="flex items-center justify-between gap-2 py-1 bg-transparent">
                         <div className="flex items-center gap-2 min-w-0">
                           <Award className="w-4 h-4 text-violet-400 shrink-0" />
@@ -370,33 +364,6 @@ export const HistoryPage: React.FC = () => {
                               {run.score_tier}
                             </span>
                           </div>
-                        </div>
-
-                        {/* Score Delta Progression */}
-                        <div className="shrink-0">
-                          {delta !== null ? (
-                            <div
-                              className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold border ${
-                                delta > 0
-                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                                  : delta < 0
-                                  ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                                  : 'bg-slate-800/80 text-slate-400 border-slate-700/60'
-                              }`}
-                              title={`Score changed by ${delta > 0 ? '+' : ''}${delta} pts relative to snapshot #${priorRun?.id}`}
-                            >
-                              {delta > 0 ? (
-                                <TrendingUp className="w-3 h-3 text-emerald-400" />
-                              ) : delta < 0 ? (
-                                <TrendingDown className="w-3 h-3 text-rose-400" />
-                              ) : null}
-                              <span>{delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '±0'} pts</span>
-                            </div>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-mono font-semibold text-slate-400 bg-slate-800/60 border border-slate-700/60">
-                              Initial
-                            </span>
-                          )}
                         </div>
                       </div>
 

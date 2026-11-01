@@ -441,7 +441,7 @@ export const RecommendationsPage: React.FC = () => {
                       </div>
 
                       {/* Evidence & Action Box */}
-                      <div className="p-3 rounded-xl bg-navy-950 border border-[rgba(148,163,184,0.18)] space-y-2 text-xs min-w-0 max-w-full overflow-hidden">
+                      <div className="p-3 rounded-xl bg-transparent border border-[rgba(148,163,184,0.18)] space-y-2 text-xs min-w-0 max-w-full overflow-hidden">
                         <div className="min-w-0">
                           <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
                             Observed Evidence:
@@ -459,7 +459,7 @@ export const RecommendationsPage: React.FC = () => {
                     </div>
 
                     {/* Footer with timestamps & Dismiss Toggle */}
-                    <div className="pt-2 border-t border-[rgba(148,163,184,0.18)] flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 min-w-0">
+                    <div className="pt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 min-w-0">
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
                         <span className="flex items-center gap-1 shrink-0">
                           <Calendar className="w-3 h-3 text-slate-500 shrink-0" />

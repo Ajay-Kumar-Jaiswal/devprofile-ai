@@ -105,15 +105,15 @@ export const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({
               </div>
 
               {/* Placement Impact & Actionable step */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-slate-800/80 text-xs">
-                <div className="p-3 rounded-lg bg-navy-950/60 border border-slate-800/60">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-xs">
+                <div className="p-3 rounded-lg bg-transparent border border-slate-800/60">
                   <span className="font-semibold text-violet-300 block mb-1">
                     Placement Drive Impact:
                   </span>
                   <p className="text-slate-400 leading-relaxed">{rec.impact}</p>
                 </div>
 
-                <div className="p-3 rounded-lg bg-navy-950/60 border border-slate-800/60">
+                <div className="p-3 rounded-lg bg-transparent border border-slate-800/60">
                   <span className="font-semibold text-emerald-300 block mb-1">
                     Action Plan:
                   </span>
@@ -122,7 +122,7 @@ export const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({
               </div>
 
               {rec.evidence && (
-                <div className="text-[11px] text-slate-400 bg-navy-950/40 px-3 py-2 rounded-lg border border-slate-800/40 flex items-start gap-1.5">
+                <div className="text-[11px] text-slate-400 bg-transparent px-3 py-2 rounded-lg border border-slate-800/40 flex items-start gap-1.5">
                   <span className="font-semibold text-slate-300 shrink-0">Observed Evidence:</span>
                   <span className="text-slate-400">{rec.evidence}</span>
                 </div>

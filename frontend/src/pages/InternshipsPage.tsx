@@ -903,7 +903,7 @@ export const InternshipsPage: React.FC = () => {
                   {/* Metadata Row: Location, Work Mode, Salary, Duration */}
                   <div className="flex items-center gap-2 flex-wrap text-xs text-slate-400 pt-0.5">
                     {item.location && (
-                      <span className="inline-flex items-center gap-1 text-slate-300 bg-navy-950/80 px-2 py-1 rounded-lg border border-slate-800/80">
+                      <span className="inline-flex items-center gap-1 text-slate-300 bg-transparent px-2 py-1 rounded-lg border border-slate-800/80">
                         <MapPin className="w-3.5 h-3.5 text-slate-500" />
                         <span>{item.location}</span>
                       </span>
@@ -925,7 +925,7 @@ export const InternshipsPage: React.FC = () => {
                     )}
 
                     {item.duration && (
-                      <span className="inline-flex items-center gap-1 text-slate-400 text-[11px] bg-navy-950/80 px-2 py-1 rounded-lg border border-slate-800/80">
+                      <span className="inline-flex items-center gap-1 text-slate-400 text-[11px] bg-transparent px-2 py-1 rounded-lg border border-slate-800/80">
                         <Calendar className="w-3.5 h-3.5" />
                         <span>{item.duration}</span>
                       </span>
@@ -935,7 +935,7 @@ export const InternshipsPage: React.FC = () => {
 
                 {/* Candidate Fit Reason Snippet */}
                 {item.match?.fit_reasons && item.match.fit_reasons.length > 0 && (
-                  <p className="text-xs text-slate-300 bg-navy-950/80 p-3 rounded-xl border border-slate-800/90 leading-relaxed">
+                  <p className="text-xs text-slate-300 bg-transparent p-3 rounded-xl border border-slate-800/80 leading-relaxed">
                     <span className="text-violet-400 font-semibold mr-1.5 font-mono text-[11px] uppercase tracking-wider">
                       Alignment:
                     </span>
@@ -947,32 +947,46 @@ export const InternshipsPage: React.FC = () => {
                 <div className="space-y-1.5 pt-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {/* Matched skills */}
-                    {item.match?.matched_skills?.slice(0, 4).map((skill, i) => (
-                      <span
-                        key={i}
-                        className="px-2 py-0.5 rounded-md bg-violet-500/10 border border-violet-500/20 text-violet-300 text-[11px] font-mono font-medium flex items-center gap-1"
-                      >
-                        <Check className="w-3 h-3 text-violet-400" />
-                        <span>{skill}</span>
-                      </span>
-                    ))}
+                    {item.match?.matched_skills?.slice(0, 4).map((skill, i) => {
+                      const isGo = skill.trim().toUpperCase() === 'GO' || skill.trim().toLowerCase() === 'golang';
+                      return (
+                        <span
+                          key={i}
+                          className={`px-2 py-0.5 rounded-md border text-[11px] font-mono font-medium flex items-center gap-1 ${
+                            isGo
+                              ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-200'
+                              : 'bg-violet-500/10 border-violet-500/20 text-violet-300'
+                          }`}
+                        >
+                          <Check className={`w-3 h-3 ${isGo ? 'text-cyan-400' : 'text-violet-400'}`} />
+                          <span>{skill}</span>
+                        </span>
+                      );
+                    })}
 
                     {/* Not demonstrated skills */}
-                    {item.match?.not_demonstrated_skills?.slice(0, 2).map((skill, i) => (
-                      <span
-                        key={i}
-                        className="px-2 py-0.5 rounded-md bg-slate-800/60 border border-slate-700/60 text-slate-400 text-[11px] font-mono flex items-center gap-1"
-                        title="Skill not demonstrated in your analyzed GitHub repositories"
-                      >
-                        <Info className="w-3 h-3 text-slate-500" />
-                        <span>{skill}</span>
-                      </span>
-                    ))}
+                    {item.match?.not_demonstrated_skills?.slice(0, 2).map((skill, i) => {
+                      const isGo = skill.trim().toUpperCase() === 'GO' || skill.trim().toLowerCase() === 'golang';
+                      return (
+                        <span
+                          key={i}
+                          className={`px-2 py-0.5 rounded-md border text-[11px] font-mono flex items-center gap-1 ${
+                            isGo
+                              ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-200 font-medium'
+                              : 'bg-slate-800/80 border-slate-700/80 text-slate-200'
+                          }`}
+                          title="Skill not demonstrated in your analyzed GitHub repositories"
+                        >
+                          <Info className={`w-3 h-3 ${isGo ? 'text-cyan-400' : 'text-slate-400'}`} />
+                          <span>{skill}</span>
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* Actions Footer */}
-                <div className="flex items-center justify-between pt-3 border-t border-slate-800/80">
+                <div className="flex items-center justify-between pt-3">
                   <span className="text-[11px] text-slate-500 font-mono flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     <span>Verified {new Date(item.last_verified_at).toLocaleDateString()}</span>
@@ -1139,14 +1153,21 @@ export const InternshipsPage: React.FC = () => {
                         </span>
                         <div className="flex flex-wrap gap-1.5">
                           {detailData.match?.matched_skills && detailData.match.matched_skills.length > 0 ? (
-                            detailData.match.matched_skills.map((s, i) => (
-                              <span
-                                key={i}
-                                className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px]"
-                              >
-                                {s}
-                              </span>
-                            ))
+                            detailData.match.matched_skills.map((s, i) => {
+                              const isGo = s.trim().toUpperCase() === 'GO' || s.trim().toLowerCase() === 'golang';
+                              return (
+                                <span
+                                  key={i}
+                                  className={`px-2 py-0.5 rounded-md border text-[11px] font-mono ${
+                                    isGo
+                                      ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-200 font-semibold'
+                                      : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-300'
+                                  }`}
+                                >
+                                  {s}
+                                </span>
+                              );
+                            })
                           ) : (
                             <span className="text-slate-500 text-[11px]">No direct overlaps found</span>
                           )}
@@ -1161,14 +1182,21 @@ export const InternshipsPage: React.FC = () => {
                         </span>
                         <div className="flex flex-wrap gap-1.5">
                           {detailData.match?.not_demonstrated_skills && detailData.match.not_demonstrated_skills.length > 0 ? (
-                            detailData.match.not_demonstrated_skills.map((s, i) => (
-                              <span
-                                key={i}
-                                className="px-2 py-0.5 rounded-md bg-slate-800/60 border border-slate-700/60 text-slate-400 text-[11px]"
-                              >
-                                {s}
-                              </span>
-                            ))
+                            detailData.match.not_demonstrated_skills.map((s, i) => {
+                              const isGo = s.trim().toUpperCase() === 'GO' || s.trim().toLowerCase() === 'golang';
+                              return (
+                                <span
+                                  key={i}
+                                  className={`px-2 py-0.5 rounded-md border text-[11px] font-mono ${
+                                    isGo
+                                      ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-200 font-semibold'
+                                      : 'bg-slate-800/80 border-slate-700/80 text-slate-200'
+                                  }`}
+                                >
+                                  {s}
+                                </span>
+                              );
+                            })
                           ) : (
                             <span className="text-slate-500 text-[11px]">All role skills demonstrated!</span>
                           )}

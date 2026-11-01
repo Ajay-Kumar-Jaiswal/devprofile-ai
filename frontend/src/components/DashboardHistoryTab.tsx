@@ -236,7 +236,7 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
       {/* Runs Grid */}
       {!isLoading && !error && runs.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-          {runs.map((run, idx) => {
+          {runs.map((run) => {
             const isSelected = selectedRunIds.includes(run.id);
             const dateStr = new Date(run.created_at).toLocaleDateString(undefined, {
               year: 'numeric',
@@ -245,11 +245,6 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
               hour: '2-digit',
               minute: '2-digit',
             });
-
-            const priorRun = runs.slice(idx + 1).find(
-              (r) => r.analyzed_login.toLowerCase() === run.analyzed_login.toLowerCase()
-            );
-            const delta = priorRun ? run.overall_score - priorRun.overall_score : null;
 
             return (
               <div
@@ -297,34 +292,15 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
                     </div>
                   </div>
 
-                  {/* Score pill & Delta progression */}
+                  {/* Score pill & Tier */}
                   <div className="text-right flex flex-col items-end gap-1">
                     <div className="flex items-baseline justify-end gap-1">
                       <span className="text-xl font-black font-mono text-white">{run.overall_score}</span>
                       <span className="text-[10px] font-mono text-slate-400">/ 100</span>
                     </div>
-                    {delta !== null ? (
-                      <span
-                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border ${
-                          delta > 0
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                            : delta < 0
-                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                            : 'bg-slate-800 text-slate-400 border-slate-700'
-                        }`}
-                      >
-                        {delta > 0 ? (
-                          <TrendingUp className="w-2.5 h-2.5 text-emerald-400" />
-                        ) : delta < 0 ? (
-                          <TrendingDown className="w-2.5 h-2.5 text-rose-400" />
-                        ) : null}
-                        <span>{delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '±0'} pts</span>
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-semibold text-violet-300 block">
-                        {run.score_tier}
-                      </span>
-                    )}
+                    <span className="text-[10px] font-semibold text-violet-300 block">
+                      {run.score_tier}
+                    </span>
                   </div>
                 </div>
 
