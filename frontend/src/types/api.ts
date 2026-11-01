@@ -409,6 +409,7 @@ export interface SyncResultOut {
 }
 
 export interface InternshipQueryParams {
+  username?: string;
   search?: string;
   location?: string;
   work_mode?: string;

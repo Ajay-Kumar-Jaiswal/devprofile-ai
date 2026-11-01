@@ -559,6 +559,7 @@ export async function updateRecommendationStatus(recId: number, status: 'open' |
 
 export async function getInternships(params: InternshipQueryParams = {}): Promise<InternshipsListResponse> {
   const q = new URLSearchParams();
+  if (params.username) q.append('username', params.username);
   if (params.search) q.append('search', params.search);
   if (params.location) q.append('location', params.location);
   if (params.work_mode) q.append('work_mode', params.work_mode);

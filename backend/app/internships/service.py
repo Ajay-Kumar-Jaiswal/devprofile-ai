@@ -177,17 +177,15 @@ class InternshipsService:
             ),
         )
 
-    def get_candidate_profile(self, db: Session, user: User) -> Tuple[CandidateSkillsProfile, bool]:
+    def get_candidate_profile(self, db: Session, user: User, username: Optional[str] = None) -> Tuple[CandidateSkillsProfile, bool]:
         """Loads candidate's latest successful GitHub profile analysis run."""
-        latest_run = (
-            db.query(AnalysisRun)
-            .filter(
-                AnalysisRun.user_id == user.id,
-                AnalysisRun.status == "success",
-            )
-            .order_by(desc(AnalysisRun.created_at))
-            .first()
+        query = db.query(AnalysisRun).filter(
+            AnalysisRun.user_id == user.id,
+            AnalysisRun.status == "success",
         )
+        if username and username.strip():
+            query = query.filter(AnalysisRun.analyzed_login == username.strip().lower())
+        latest_run = query.order_by(desc(AnalysisRun.created_at)).first()
         has_analysis = latest_run is not None
         profile = CandidateSkillsProfile(latest_run)
         return profile, has_analysis
@@ -196,6 +194,7 @@ class InternshipsService:
         self,
         db: Session,
         user: User,
+        username: Optional[str] = None,
         search: Optional[str] = None,
         location: Optional[str] = None,
         work_mode: Optional[str] = None,
@@ -212,7 +211,7 @@ class InternshipsService:
         """
         Lists internships with deterministic profile matching, filtering, and pagination.
         """
-        candidate, has_analysis = self.get_candidate_profile(db, user)
+        candidate, has_analysis = self.get_candidate_profile(db, user, username=username)
 
         # Retrieve IDs of internships bookmarked by user
         saved_ids: Set[int] = set(

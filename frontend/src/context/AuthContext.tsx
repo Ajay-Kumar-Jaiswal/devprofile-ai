@@ -18,6 +18,23 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function clearSessionAnalysisCache(): void {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('devprofile_analysis_cache_')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => sessionStorage.removeItem(k));
+    }
+  } catch (e) {
+    console.warn('Failed to clear session cache:', e);
+  }
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserOut | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -40,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return data;
     } catch {
       setUser(null);
+      clearSessionAnalysisCache();
       return null;
     }
   };
@@ -55,7 +73,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (mounted) setUser(data);
       })
       .catch(() => {
-        if (mounted) setUser(null);
+        if (mounted) {
+          setUser(null);
+          clearSessionAnalysisCache();
+        }
       })
       .finally(() => {
         if (mounted) setIsLoading(false);
@@ -67,12 +88,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, pass: string) => {
+    // Clear previous session analysis cache so login starts fresh without stale recommendations
+    clearSessionAnalysisCache();
     const res = await loginUser(email, pass);
     setUser(res.user);
     closeAuthDrawer();
   };
 
   const register = async (email: string, pass: string, name?: string, defaultProfile?: string) => {
+    clearSessionAnalysisCache();
     const res = await registerUser(email, pass, name, defaultProfile);
     setUser(res.user);
     closeAuthDrawer();
@@ -82,20 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await logoutUser();
     } finally {
-      try {
-        if (typeof window !== 'undefined' && window.sessionStorage) {
-          const keysToRemove: string[] = [];
-          for (let i = 0; i < sessionStorage.length; i++) {
-            const key = sessionStorage.key(i);
-            if (key && key.startsWith('devprofile_analysis_cache_')) {
-              keysToRemove.push(key);
-            }
-          }
-          keysToRemove.forEach((k) => sessionStorage.removeItem(k));
-        }
-      } catch (e) {
-        console.warn('Failed to clear session cache on logout:', e);
-      }
+      clearSessionAnalysisCache();
       setUser(null);
     }
   };

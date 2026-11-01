@@ -61,7 +61,6 @@ async def list_analyzed_profiles(
         db.query(TrackedRecommendation.analyzed_login)
         .filter(
             TrackedRecommendation.user_id == current_user.id,
-            ~TrackedRecommendation.analyzed_login.in_(["alex-dev-demo", "demo"]),
         )
         .distinct()
         .all()
@@ -82,7 +81,6 @@ async def list_recommendations(
 ):
     query = db.query(TrackedRecommendation).filter(
         TrackedRecommendation.user_id == current_user.id,
-        ~TrackedRecommendation.analyzed_login.in_(["alex-dev-demo", "demo"]),
     )
 
     if username:

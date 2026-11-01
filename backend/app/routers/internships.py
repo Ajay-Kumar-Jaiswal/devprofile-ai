@@ -31,6 +31,7 @@ router = APIRouter(prefix="/api/internships", tags=["Internship Matches"])
     include_in_schema=False,
 )
 async def list_internships(
+    username: Optional[str] = Query(None, description="Username of analyzed GitHub profile in current session"),
     search: Optional[str] = Query(None, description="Search keyword for role title, company, or skills"),
     q: Optional[str] = Query(None, description="Search keyword alias"),
     location: Optional[str] = Query(None, description="Filter by location string"),
@@ -55,6 +56,7 @@ async def list_internships(
     return internships_service.list_internships(
         db=db,
         user=current_user,
+        username=username,
         search=effective_search,
         location=location,
         work_mode=work_mode,

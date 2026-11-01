@@ -23,7 +23,9 @@ import {
   Globe,
   Building2,
   Filter,
+  ArrowRight,
 } from 'lucide-react';
+import { useAnalysis } from '../context/AnalysisContext';
 import {
   getInternships,
   getInternshipDetail,
@@ -41,6 +43,10 @@ import type {
 } from '../types/api';
 
 export const InternshipsPage: React.FC = () => {
+  const { currentAnalysis } = useAnalysis();
+  const hasSessionAnalysis = Boolean(
+    currentAnalysis && currentAnalysis.username && currentAnalysis.portfolio_score
+  );
 
   // State
   const [listings, setListings] = useState<InternshipListingSummaryOut[]>([]);
@@ -76,10 +82,19 @@ export const InternshipsPage: React.FC = () => {
 
   // Fetch listings from API
   const fetchListings = useCallback(async () => {
+    // Only show internship recommendations when a valid analysis exists in the current session
+    if (activeTab === 'all' && !hasSessionAnalysis) {
+      setListings([]);
+      setTotal(0);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage(null);
     try {
       const params: InternshipQueryParams = {
+        username: hasSessionAnalysis && currentAnalysis?.username ? currentAnalysis.username : undefined,
         search: searchTerm.trim() || undefined,
         location: locationScope !== 'all' ? locationScope : undefined,
         work_mode: workMode !== 'all' ? workMode : undefined,
@@ -104,7 +119,18 @@ export const InternshipsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [searchTerm, locationScope, workMode, roleCategory, employerFilter, activeTab, minScore, sortBy]);
+  }, [
+    activeTab,
+    hasSessionAnalysis,
+    currentAnalysis?.username,
+    searchTerm,
+    locationScope,
+    workMode,
+    roleCategory,
+    employerFilter,
+    minScore,
+    sortBy,
+  ]);
 
   // Initial load & search debounce
   useEffect(() => {
@@ -358,7 +384,7 @@ export const InternshipsPage: React.FC = () => {
       )}
 
       {/* 2. Unanalyzed Profile Banner (if candidate has no analysis yet) */}
-      {!hasProfileAnalysis && (
+      {hasSessionAnalysis && !hasProfileAnalysis && (
         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
           <div className="flex items-start gap-2.5">
             <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
@@ -504,7 +530,13 @@ export const InternshipsPage: React.FC = () => {
           </div>
 
           <div className="text-xs text-slate-400">
-            Showing <span className="font-bold text-white">{listings.length}</span> of {total} vacancy matches
+            {activeTab === 'all' && !hasSessionAnalysis ? (
+              <span>Session analysis required for matches</span>
+            ) : (
+              <span>
+                Showing <span className="font-bold text-white">{listings.length}</span> of {total} vacancy matches
+              </span>
+            )}
           </div>
         </div>
 
@@ -719,7 +751,26 @@ export const InternshipsPage: React.FC = () => {
       </div>
 
       {/* 5. Main Content: Grid of Listings */}
-      {isLoading ? (
+      {activeTab === 'all' && !hasSessionAnalysis ? (
+        <div className="glass-panel rounded-2xl p-8 sm:p-12 text-center border border-slate-800 space-y-4 max-w-lg mx-auto my-6 shadow-card animate-fadeIn">
+          <div className="h-12 w-12 rounded-2xl bg-violet-500/10 text-violet-400 flex items-center justify-center mx-auto border border-violet-500/20">
+            <Sparkles className="w-6 h-6" />
+          </div>
+          <h3 className="text-base sm:text-lg font-bold text-white">Internship Recommendations Inactive</h3>
+          <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+            Recommendations are generated based on your GitHub profile skills and repository evidence in the current session. Analyze a profile on the Dashboard to view personalized matches.
+          </p>
+          <div className="pt-2">
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-subtle transition-all cursor-pointer"
+            >
+              <span>Analyze GitHub Profile</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      ) : isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-8">
           {[1, 2, 3, 4].map((n) => (
             <div

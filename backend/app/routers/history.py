@@ -110,20 +110,46 @@ async def get_history_detail(
             "description": r.description,
             "impact": r.impact,
             "action": r.suggested_action,
+            "evidence": r.evidence,
         }
         for r in tracked_recs
         if r.status == "open"
     ]
 
-    # Dummy roadmaps if not stored separately
-    from app.analyzer.recommendations import generate_roadmap
+    from app.analyzer.recommendations import generate_roadmap, generate_recommendations
     from app.services.github_service import github_service
+    from app.models import LanguageStat, RecommendationItem, RepoQualityChecklist, PortfolioScore
 
     profile_obj = github_service.parse_profile(profile_dict)
     repos_objs = github_service.parse_repositories(repos_list)
-    languages_objs = [github_service.parse_profile for _ in []]  # typed helper
-    from app.models import LanguageStat, RecommendationItem
     languages_objs = [LanguageStat(**l) for l in languages_list]
+    checklist_obj = RepoQualityChecklist(**checklist_dict)
+
+    # If no tracked recommendations found in database, generate deterministic recommendations from snapshot data
+    if not recs_list:
+        generated_recs = generate_recommendations(profile_obj, repos_objs, languages_objs, checklist_obj)
+        recs_list = [
+            {
+                "id": r.id,
+                "priority": r.priority,
+                "category": r.category,
+                "title": r.title,
+                "description": r.description,
+                "impact": r.impact,
+                "action": r.action,
+                "evidence": r.evidence,
+            }
+            for r in generated_recs
+        ]
+
+    # Validate and ensure score_dict conforms to PortfolioScore schema
+    try:
+        PortfolioScore.model_validate(score_dict)
+    except Exception:
+        from app.analyzer.scoring import calculate_portfolio_score
+        computed_score = calculate_portfolio_score(profile_obj, repos_objs, languages_objs)
+        score_dict = computed_score.model_dump()
+
     recs_objs = [RecommendationItem(**r) for r in recs_list] if recs_list else None
     roadmap_7, roadmap_30 = generate_roadmap(profile_obj, repos_objs, languages_objs, recs_objs)
 

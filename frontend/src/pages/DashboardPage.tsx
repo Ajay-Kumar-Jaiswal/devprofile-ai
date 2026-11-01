@@ -40,8 +40,10 @@ export const DashboardPage: React.FC = () => {
     status?: number;
     retryAfterSeconds?: number;
     rateLimitResetEpoch?: number;
+    retryRunId?: number;
   } | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+  const loadedRunIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     const currentTab = searchParams.get('tab');
@@ -106,6 +108,32 @@ export const DashboardPage: React.FC = () => {
   };
 
 
+  const loadHistoryRun = async (id: number) => {
+    setIsLoading(true);
+    setError(null);
+    setIsSearchOpen(false);
+
+    try {
+      const snapshot = await getHistoryRunDetail(id);
+      loadedRunIdRef.current = id;
+      setAnalysisData(snapshot);
+      saveAnalysis(snapshot);
+      setUsername(snapshot.username);
+      setError(null);
+    } catch (err: any) {
+      console.error('Failed to load historical snapshot:', err);
+      loadedRunIdRef.current = null;
+      setError({
+        message: err?.detail || err?.message || 'Could not load historical analysis snapshot. Please try again.',
+        status: err?.status,
+        retryRunId: id,
+      });
+      setAnalysisData(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleLoadDemo = () => {
     runAnalysis('alex-dev-demo', true);
   };
@@ -148,17 +176,10 @@ export const DashboardPage: React.FC = () => {
           return;
         }
         autoAnalyzedRef.current = true;
-        setIsLoading(true);
-        getHistoryRunDetail(id)
-          .then((snapshot) => {
-            setAnalysisData(snapshot);
-            saveAnalysis(snapshot);
-            setUsername(snapshot.username);
-          })
-          .catch((err) => {
-            setError({ message: err.detail || 'Could not load historical snapshot.' });
-          })
-          .finally(() => setIsLoading(false));
+        if (loadedRunIdRef.current === id && analysisData) {
+          return;
+        }
+        loadHistoryRun(id);
         return;
       }
     }
@@ -317,7 +338,13 @@ export const DashboardPage: React.FC = () => {
           statusCode={error.status}
           retryAfterSeconds={error.retryAfterSeconds}
           rateLimitResetEpoch={error.rateLimitResetEpoch}
-          onRetry={username ? () => runAnalysis(username, false) : undefined}
+          onRetry={
+            error.retryRunId
+              ? () => loadHistoryRun(error.retryRunId!)
+              : username
+              ? () => runAnalysis(username, false)
+              : undefined
+          }
           onLoadDemo={handleLoadDemo}
         />
       )}

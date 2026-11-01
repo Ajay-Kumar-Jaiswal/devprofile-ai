@@ -277,7 +277,7 @@ export const HistoryPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {runs
               .filter((run) => {
                 if (!searchQuery.trim()) return true;
@@ -307,112 +307,132 @@ export const HistoryPage: React.FC = () => {
                 return (
                   <div
                     key={run.id}
-                    className={`surface-card p-5 rounded-2xl border transition-all duration-180 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-card hover:shadow-subtle-glow ${
+                    className={`surface-card p-5 rounded-2xl border transition-all duration-180 flex flex-col justify-between h-full shadow-card hover:shadow-subtle-glow group ${
                       isSelected
-                        ? 'border-violet-500 bg-violet-900/40 shadow-subtle'
+                        ? 'border-violet-500 bg-violet-900/40 shadow-subtle ring-1 ring-violet-500/50'
                         : 'border-slate-800 hover:border-[#477F7C]'
                     }`}
                   >
-                    {/* Left: Checkbox + User handle + Timestamp */}
-                    <div className="flex items-center gap-3.5">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelectRun(run.id)}
-                        className="h-4 w-4 rounded border-slate-700 bg-navy-950 text-violet-600 focus:ring-violet-500/40 cursor-pointer"
-                      />
+                    {/* Card Top: Checkbox, Handle, Demo, Run ID, Delete */}
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectRun(run.id)}
+                            aria-label={`Select @${run.analyzed_login} snapshot for comparison`}
+                            className="h-4 w-4 rounded border-slate-700 bg-navy-950 text-violet-600 focus:ring-violet-500/40 cursor-pointer shrink-0"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-mono font-bold text-white text-sm truncate" title={`@${run.analyzed_login}`}>
+                                @{run.analyzed_login}
+                              </span>
+                              {run.is_demo_data && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 shrink-0">
+                                  Demo
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] font-mono text-slate-500 block">
+                              #{run.id}
+                            </span>
+                          </div>
+                        </div>
 
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-white text-sm">
-                            @{run.analyzed_login}
-                          </span>
-                          {run.is_demo_data && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30">
-                              Demo
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteRun(run.id)}
+                          className="p-1.5 rounded-xl bg-navy-950 hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 border border-slate-800 transition-colors cursor-pointer shrink-0"
+                          title="Delete run snapshot"
+                          aria-label={`Delete snapshot #${run.id}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Date */}
+                      <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
+                        <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                        <span className="truncate">{formattedDate}</span>
+                      </div>
+
+                      {/* Score & Tier Banner + Delta */}
+                      <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-navy-950 border border-slate-800/80">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Award className="w-4 h-4 text-violet-400 shrink-0" />
+                          <div className="min-w-0">
+                            <span className="font-extrabold text-white font-mono text-sm block">
+                              {run.overall_score}/100
+                            </span>
+                            <span className="text-[10px] font-semibold text-slate-400 block truncate">
+                              {run.score_tier}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Score Delta Progression */}
+                        <div className="shrink-0">
+                          {delta !== null ? (
+                            <div
+                              className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold border ${
+                                delta > 0
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                  : delta < 0
+                                  ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                                  : 'bg-slate-800/80 text-slate-400 border-slate-700/60'
+                              }`}
+                              title={`Score changed by ${delta > 0 ? '+' : ''}${delta} pts relative to snapshot #${priorRun?.id}`}
+                            >
+                              {delta > 0 ? (
+                                <TrendingUp className="w-3 h-3 text-emerald-400" />
+                              ) : delta < 0 ? (
+                                <TrendingDown className="w-3 h-3 text-rose-400" />
+                              ) : null}
+                              <span>{delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '±0'} pts</span>
+                            </div>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-mono font-semibold text-slate-400 bg-slate-800/60 border border-slate-700/60">
+                              Initial
                             </span>
                           )}
-                          <span className="text-[10px] font-mono text-slate-500">
-                            #{run.id}
+                        </div>
+                      </div>
+
+                      {/* Metrics Chips */}
+                      <div className="flex items-center gap-2 flex-wrap text-xs pt-1">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-950 border border-slate-800">
+                          <BookOpen className="w-3 h-3 text-indigo-400 shrink-0" />
+                          <span className="text-slate-300 font-medium font-mono text-[11px]">
+                            {run.public_repos} repos
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2 mt-1 text-xs text-slate-400 font-mono">
-                          <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                          <span>{formattedDate}</span>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-950 border border-slate-800">
+                          <Star className="w-3 h-3 text-amber-400 shrink-0" />
+                          <span className="text-slate-300 font-medium font-mono text-[11px]">
+                            {run.total_stars} stars
+                          </span>
                         </div>
+
+                        {run.primary_language && (
+                          <span className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 truncate max-w-[120px]">
+                            {run.primary_language}
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Middle: Score Badge, Delta indicator, Metrics Chips */}
-                    <div className="flex items-center gap-3 flex-wrap text-xs">
-                      {/* Overall score */}
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-navy-950 border border-slate-800">
-                        <Award className="w-4 h-4 text-violet-400" />
-                        <span className="font-extrabold text-white font-mono">{run.overall_score}/100</span>
-                        <span className="text-[10px] font-semibold text-slate-400">({run.score_tier})</span>
-                      </div>
-
-                      {/* Score Delta Progression */}
-                      {delta !== null ? (
-                        <div
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-mono font-bold border ${
-                            delta > 0
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                              : delta < 0
-                              ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                              : 'bg-slate-800 text-slate-400 border-slate-700'
-                          }`}
-                          title={`Score changed by ${delta > 0 ? '+' : ''}${delta} pts relative to snapshot #${priorRun?.id}`}
-                        >
-                          {delta > 0 ? (
-                            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                          ) : delta < 0 ? (
-                            <TrendingDown className="w-3.5 h-3.5 text-rose-400" />
-                          ) : null}
-                          <span>{delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '±0'} pts</span>
-                        </div>
-                      ) : (
-                        <div className="px-2.5 py-1 rounded-xl text-[10px] font-mono font-semibold text-slate-400 bg-navy-950 border border-slate-800">
-                          Initial Snapshot
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-navy-950 border border-slate-800">
-                        <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
-                        <span className="text-slate-300 font-medium font-mono">{run.public_repos} repos</span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-navy-950 border border-slate-800">
-                        <Star className="w-3.5 h-3.5 text-amber-400" />
-                        <span className="text-slate-300 font-medium font-mono">{run.total_stars} stars</span>
-                      </div>
-
-                      {run.primary_language && (
-                        <span className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                          {run.primary_language}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Right: Actions */}
-                    <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
+                    {/* Card Bottom: Aligned Open Report Button */}
+                    <div className="pt-4 mt-3 border-t border-slate-800/60">
                       <button
                         type="button"
                         onClick={() => handleOpenReport(run)}
-                        className="px-3.5 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600 text-violet-300 hover:text-white border border-violet-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                        className="w-full py-2 px-3.5 rounded-xl bg-violet-600/20 hover:bg-violet-600 text-violet-300 hover:text-white border border-violet-500/30 hover:border-violet-500 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-subtle"
                       >
                         <span>Open Report</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteRun(run.id)}
-                        className="p-1.5 rounded-xl bg-navy-950 hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 border border-slate-800 transition-colors cursor-pointer"
-                        title="Delete run snapshot"
-                      >
-                        <Trash2 className="w-4 h-4" />
+                        <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>

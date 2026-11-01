@@ -235,7 +235,7 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
 
       {/* Runs Grid */}
       {!isLoading && !error && runs.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {runs.map((run, idx) => {
             const isSelected = selectedRunIds.includes(run.id);
             const dateStr = new Date(run.created_at).toLocaleDateString(undefined, {
