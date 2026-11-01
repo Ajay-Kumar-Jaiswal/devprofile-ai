@@ -329,7 +329,7 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
                 </div>
 
                 {/* Sub-stats & Actions */}
-                <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+                <div className="mt-4 pt-2 flex items-center justify-between text-xs text-slate-400">
                   <div className="flex items-center gap-3">
                     <span className="flex items-center gap-1 font-mono text-[11px]">
                       <BookOpen className="w-3.5 h-3.5 text-slate-500" />
@@ -340,7 +340,7 @@ export const DashboardHistoryTab: React.FC<DashboardHistoryTabProps> = ({
                       <span>{run.total_stars}</span>
                     </span>
                     {run.primary_language && (
-                      <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">
+                      <span className="px-2 py-0.5 rounded bg-transparent border border-emerald-500/30 text-emerald-300 text-[10px]">
                         {run.primary_language}
                       </span>
                     )}

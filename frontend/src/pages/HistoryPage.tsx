@@ -359,7 +359,7 @@ export const HistoryPage: React.FC = () => {
                       </div>
 
                       {/* Score & Tier Banner + Delta */}
-                      <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-navy-950 border border-slate-800/80">
+                      <div className="flex items-center justify-between gap-2 py-1 bg-transparent">
                         <div className="flex items-center gap-2 min-w-0">
                           <Award className="w-4 h-4 text-violet-400 shrink-0" />
                           <div className="min-w-0">
@@ -402,14 +402,14 @@ export const HistoryPage: React.FC = () => {
 
                       {/* Metrics Chips */}
                       <div className="flex items-center gap-2 flex-wrap text-xs pt-1">
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-950 border border-slate-800">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-transparent border border-slate-800">
                           <BookOpen className="w-3 h-3 text-indigo-400 shrink-0" />
                           <span className="text-slate-300 font-medium font-mono text-[11px]">
                             {run.public_repos} repos
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-950 border border-slate-800">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-transparent border border-slate-800">
                           <Star className="w-3 h-3 text-amber-400 shrink-0" />
                           <span className="text-slate-300 font-medium font-mono text-[11px]">
                             {run.total_stars} stars
@@ -417,7 +417,7 @@ export const HistoryPage: React.FC = () => {
                         </div>
 
                         {run.primary_language && (
-                          <span className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 truncate max-w-[120px]">
+                          <span className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-transparent text-emerald-300 border border-emerald-500/30 truncate max-w-[120px]">
                             {run.primary_language}
                           </span>
                         )}
@@ -425,7 +425,7 @@ export const HistoryPage: React.FC = () => {
                     </div>
 
                     {/* Card Bottom: Aligned Open Report Button */}
-                    <div className="pt-4 mt-3 border-t border-slate-800/60">
+                    <div className="pt-4 mt-3">
                       <button
                         type="button"
                         onClick={() => handleOpenReport(run)}
