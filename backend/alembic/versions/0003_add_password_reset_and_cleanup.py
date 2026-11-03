@@ -28,6 +28,11 @@ def upgrade() -> None:
         inspector = sa.inspect(bind)
         existing_tables = set(inspector.get_table_names())
 
+    # Ensure alembic_version.version_num is widened to VARCHAR(255) for PostgreSQL
+    # before Alembic attempts to record this 35-character revision identifier.
+    if dialect == "postgresql":
+        op.execute("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255);")
+
     # Create password_reset_otps table
     if offline or "password_reset_otps" not in existing_tables:
         op.create_table(

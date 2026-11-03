@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from typing import Generator
 from app.config import settings, _backend_dir
@@ -43,6 +43,41 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def ensure_version_column_compatibility(connection) -> None:
+    """
+    Safe and repeatable schema compatibility fix for existing PostgreSQL/Neon databases.
+    If alembic_version exists with a version_num column constrained to < 255 chars (e.g. VARCHAR(32)),
+    widens it to VARCHAR(255) before Alembic queries or writes longer revision identifiers.
+    """
+    try:
+        if connection.dialect.name != "postgresql":
+            return
+
+        inspector = inspect(connection)
+        tables = set(inspector.get_table_names())
+        if "alembic_version" not in tables:
+            return
+
+        columns = inspector.get_columns("alembic_version")
+        needs_widening = False
+        for col in columns:
+            if col.get("name") == "version_num":
+                col_type = col.get("type")
+                length = getattr(col_type, "length", None)
+                if length is not None and length < 255:
+                    needs_widening = True
+                break
+
+        if needs_widening:
+            connection.execute(
+                text("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255);")
+            )
+            connection.commit()
+            logger.info("Successfully widened alembic_version.version_num to VARCHAR(255).")
+    except Exception as exc:
+        logger.warning(f"Version table compatibility notice: {exc}")
 
 
 def apply_migrations() -> None:
