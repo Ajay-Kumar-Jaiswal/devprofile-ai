@@ -143,22 +143,32 @@ def test_recommendation_reconciliation_lifecycle():
 
 
 @pytest.mark.asyncio
-async def test_authenticated_history_and_user_isolation():
+async def test_authenticated_history_and_user_isolation(mock_resend_email):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Register User A
-        reg_a = await client.post(
+        # Register and verify User A
+        await client.post(
             "/api/auth/register",
             json={"email": "usera@example.com", "password": "Password123!"},
         )
-        token_a = reg_a.json()["token"]
+        otp_a = mock_resend_email[-1]["otp"]
+        ver_a = await client.post(
+            "/api/auth/verify-otp",
+            json={"email": "usera@example.com", "otp": otp_a},
+        )
+        token_a = ver_a.json()["token"]
 
-        # Register User B
-        reg_b = await client.post(
+        # Register and verify User B
+        await client.post(
             "/api/auth/register",
             json={"email": "userb@example.com", "password": "Password123!"},
         )
-        token_b = reg_b.json()["token"]
+        otp_b = mock_resend_email[-1]["otp"]
+        ver_b = await client.post(
+            "/api/auth/verify-otp",
+            json={"email": "userb@example.com", "otp": otp_b},
+        )
+        token_b = ver_b.json()["token"]
 
         # User A executes an analysis (demo mode)
         run_resp = await client.get(
@@ -201,15 +211,20 @@ async def test_authenticated_history_and_user_isolation():
 
 
 @pytest.mark.asyncio
-async def test_recommendation_status_manual_update():
+async def test_recommendation_status_manual_update(mock_resend_email):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Register user and trigger demo analysis to seed recommendations
-        reg = await client.post(
+        # Register and verify user and trigger demo analysis to seed recommendations
+        await client.post(
             "/api/auth/register",
             json={"email": "status@example.com", "password": "Password123!"},
         )
-        token = reg.json()["token"]
+        otp = mock_resend_email[-1]["otp"]
+        ver = await client.post(
+            "/api/auth/verify-otp",
+            json={"email": "status@example.com", "otp": otp},
+        )
+        token = ver.json()["token"]
 
         await client.get(
             "/api/analyze/alex-dev-demo?demo=true",

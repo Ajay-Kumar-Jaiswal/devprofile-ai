@@ -441,7 +441,7 @@ export const RecommendationsPage: React.FC = () => {
                       </div>
 
                       {/* Evidence & Action Box */}
-                      <div className="p-3 rounded-xl bg-transparent border border-[rgba(148,163,184,0.18)] space-y-2 text-xs min-w-0 max-w-full overflow-hidden">
+                      <div className="p-3 rounded-xl bg-transparent border border-slate-800/40 space-y-2 text-xs min-w-0 max-w-full overflow-hidden">
                         <div className="min-w-0">
                           <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
                             Observed Evidence:
@@ -449,7 +449,7 @@ export const RecommendationsPage: React.FC = () => {
                           <p className="text-slate-300 text-[11px] mt-0.5 break-words break-all sm:break-words">{rec.evidence}</p>
                         </div>
 
-                        <div className="pt-2 border-t border-[rgba(148,163,184,0.18)] min-w-0">
+                        <div className="pt-2 border-t border-slate-800/40 min-w-0">
                           <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider block">
                             Action Plan:
                           </span>

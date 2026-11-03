@@ -31,6 +31,7 @@ export const SignUpPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [defaultProfile, setDefaultProfile] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,12 +56,20 @@ export const SignUpPage: React.FC = () => {
       setError('Password must be at least 8 characters in length.');
       return;
     }
+    if (!termsAccepted) {
+      setError('You must accept the Terms & Conditions and Privacy Policy to create an account.');
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
 
     try {
-      await register(cleanEmail, password, fullName.trim() || undefined, defaultProfile.trim() || undefined);
+      const res = await register(cleanEmail, password, fullName.trim() || undefined, defaultProfile.trim() || undefined, termsAccepted);
+      if (res.requires_verification) {
+        navigate(`/verify-otp?email=${encodeURIComponent(cleanEmail)}${targetRedirect !== '/dashboard' ? `&redirect=${encodeURIComponent(targetRedirect)}` : ''}`);
+        return;
+      }
       // If a specific redirect was requested (e.g., from an analysis attempt), honor it
       if (targetRedirect !== '/dashboard') {
         navigate(targetRedirect);
@@ -165,6 +174,27 @@ export const SignUpPage: React.FC = () => {
               )}
               <span>Continue with GitHub</span>
             </button>
+            <p className="mt-2 text-center text-[11px] text-slate-400 leading-relaxed">
+              By continuing with GitHub, you agree to DevProfile AI&rsquo;s{' '}
+              <Link
+                to="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-violet-400 hover:text-violet-300 underline underline-offset-2"
+              >
+                Terms &amp; Conditions
+              </Link>{' '}
+              and{' '}
+              <Link
+                to="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-violet-400 hover:text-violet-300 underline underline-offset-2"
+              >
+                Privacy Policy
+              </Link>
+              .
+            </p>
           </div>
 
           {/* GitHub OAuth Setup Notice Banner */}
@@ -279,6 +309,41 @@ export const SignUpPage: React.FC = () => {
               <p className="mt-1 text-[11px] text-slate-400">
                 You can also enter or analyze any GitHub profile after signing in.
               </p>
+            </div>
+
+            {/* Terms & Conditions Checkbox */}
+            <div className="pt-1">
+              <label className="flex items-start gap-2.5 cursor-pointer text-xs text-slate-300 select-none">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-700 bg-navy-950 text-violet-600 focus:ring-violet-500/40 focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="leading-relaxed text-slate-400">
+                  I agree to the{' '}
+                  <Link
+                    to="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-violet-400 hover:text-violet-300 font-semibold underline underline-offset-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Terms &amp; Conditions
+                  </Link>{' '}
+                  and{' '}
+                  <Link
+                    to="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-violet-400 hover:text-violet-300 font-semibold underline underline-offset-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Privacy Policy
+                  </Link>
+                  .
+                </span>
+              </label>
             </div>
 
             {/* 8. Existing Submit Button */}

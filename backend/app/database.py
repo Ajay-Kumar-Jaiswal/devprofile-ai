@@ -51,3 +51,25 @@ def init_db() -> None:
     except Exception:
         # Column already exists
         pass
+
+    # Ensure is_verified column exists on users table (defaults to TRUE for backward compatibility)
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN is_verified BOOLEAN NOT NULL DEFAULT 1"))
+            conn.commit()
+    except Exception:
+        # Column already exists
+        pass
+
+    # Ensure terms acceptance tracking columns exist on users table
+    for col_ddl in [
+        "ALTER TABLE users ADD COLUMN terms_accepted BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN terms_accepted_version VARCHAR(50)",
+        "ALTER TABLE users ADD COLUMN terms_accepted_at DATETIME",
+    ]:
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(col_ddl))
+                conn.commit()
+        except Exception:
+            pass

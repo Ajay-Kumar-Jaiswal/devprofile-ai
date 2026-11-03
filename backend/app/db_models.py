@@ -28,8 +28,14 @@ class User(Base):
     full_name = Column(String(255), nullable=True)
     default_profile_username = Column(String(100), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    is_verified = Column(Boolean, default=True, nullable=False)
+    terms_accepted = Column(Boolean, default=False, nullable=False)
+    terms_accepted_version = Column(String(50), nullable=True)
+    terms_accepted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utcnow, nullable=False)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+    __table_args__ = {"sqlite_autoincrement": True}
 
     @property
     def has_password(self) -> bool:
@@ -55,6 +61,16 @@ class User(Base):
     )
     saved_internships = relationship(
         "UserSavedInternship",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    otps = relationship(
+        "EmailVerificationOTP",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    deletion_otps = relationship(
+        "AccountDeletionOTP",
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -178,6 +194,52 @@ class OAuthState(Base):
     created_at = Column(DateTime, default=utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     consumed_at = Column(DateTime, nullable=True)
+
+
+class EmailVerificationOTP(Base):
+    """Secure, single-use hashed OTP codes for email verification."""
+    __tablename__ = "email_verification_otps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    email = Column(String(255), nullable=False, index=True)
+    otp_hash = Column(String(255), nullable=False)
+    salt = Column(String(64), nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+    max_attempts = Column(Integer, default=5, nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    is_consumed = Column(Boolean, default=False, nullable=False, index=True)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    consumed_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", back_populates="otps")
+
+    __table_args__ = (
+        Index("idx_otp_email_active", "email", "is_consumed", "expires_at"),
+    )
+
+
+class AccountDeletionOTP(Base):
+    """Secure, single-use hashed OTP codes for permanent account deletion."""
+    __tablename__ = "account_deletion_otps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    email = Column(String(255), nullable=False, index=True)
+    otp_hash = Column(String(255), nullable=False)
+    salt = Column(String(64), nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+    max_attempts = Column(Integer, default=5, nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    is_consumed = Column(Boolean, default=False, nullable=False, index=True)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    consumed_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", back_populates="deletion_otps")
+
+    __table_args__ = (
+        Index("idx_deletion_otp_user_active", "user_id", "is_consumed", "expires_at"),
+    )
 
 
 class InternshipListing(Base):

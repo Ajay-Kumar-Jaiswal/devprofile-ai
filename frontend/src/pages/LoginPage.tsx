@@ -9,6 +9,7 @@ import {
   Mail,
   Loader2,
   AlertCircle,
+  CheckCircle2,
   Info,
   ArrowRight,
   Eye,
@@ -168,11 +169,36 @@ export const LoginPage: React.FC = () => {
             <div className="border-t border-[rgba(148,163,184,0.18)] w-full" />
           </div>
 
+          {/* Deletion Confirmation Banner */}
+          {searchParams.get('deleted') === 'true' && (
+            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-300 flex items-start gap-2.5 leading-relaxed">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-white mb-0.5">Account Permanently Deleted</p>
+                <p className="text-[11px] text-emerald-200/90">
+                  Your DevProfile AI account and all associated data have been permanently erased. You are welcome to create a fresh account anytime.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Error Banner */}
           {error && (
             <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-              <span className="leading-relaxed">{error}</span>
+              <div className="flex-1 leading-relaxed">
+                <span>{error}</span>
+                {error.toLowerCase().includes('not verified') && (
+                  <div className="mt-2">
+                    <Link
+                      to={`/verify-otp?email=${encodeURIComponent(email.trim())}`}
+                      className="inline-flex items-center gap-1 font-semibold text-violet-400 hover:text-violet-300 underline underline-offset-2"
+                    >
+                      Enter verification code <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

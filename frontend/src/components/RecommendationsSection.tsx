@@ -106,14 +106,14 @@ export const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({
 
               {/* Placement Impact & Actionable step */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-xs">
-                <div className="p-3 rounded-lg bg-transparent border border-slate-800/60">
+                <div className="p-3 rounded-lg bg-transparent border border-slate-800/40">
                   <span className="font-semibold text-violet-300 block mb-1">
                     Placement Drive Impact:
                   </span>
                   <p className="text-slate-400 leading-relaxed">{rec.impact}</p>
                 </div>
 
-                <div className="p-3 rounded-lg bg-transparent border border-slate-800/60">
+                <div className="p-3 rounded-lg bg-transparent border border-slate-800/40">
                   <span className="font-semibold text-emerald-300 block mb-1">
                     Action Plan:
                   </span>

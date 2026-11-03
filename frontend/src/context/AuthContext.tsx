@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { UserOut } from '../types/api';
-import { getMe, loginUser, registerUser, logoutUser } from '../services/api';
+import type { UserOut, RegisterResponse, AuthResponse, ConfirmDeleteAccountResponse } from '../types/api';
+import { getMe, loginUser, registerUser, logoutUser, verifyOtp, confirmDeleteAccount } from '../services/api';
 
 interface AuthContextType {
   user: UserOut | null;
   isLoading: boolean;
   login: (email: string, pass: string) => Promise<void>;
-  register: (email: string, pass: string, name?: string, defaultProfile?: string) => Promise<void>;
+  register: (email: string, pass: string, name?: string, defaultProfile?: string, termsAccepted?: boolean) => Promise<RegisterResponse>;
+  verifyEmailOtp: (email: string, otp: string) => Promise<AuthResponse>;
+  deleteAccount: (otp: string) => Promise<ConfirmDeleteAccountResponse>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<UserOut | null>;
   updateUser: (updatedUser: UserOut) => void;
@@ -95,11 +97,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     closeAuthDrawer();
   };
 
-  const register = async (email: string, pass: string, name?: string, defaultProfile?: string) => {
+  const register = async (
+    email: string,
+    pass: string,
+    name?: string,
+    defaultProfile?: string,
+    termsAccepted: boolean = true
+  ): Promise<RegisterResponse> => {
     clearSessionAnalysisCache();
-    const res = await registerUser(email, pass, name, defaultProfile);
+    const res = await registerUser(email, pass, name, defaultProfile, termsAccepted);
+    if (!res.requires_verification && res.user) {
+      setUser(res.user);
+      closeAuthDrawer();
+    }
+    return res;
+  };
+
+  const verifyEmailOtp = async (email: string, otp: string): Promise<AuthResponse> => {
+    clearSessionAnalysisCache();
+    const res = await verifyOtp(email, otp);
     setUser(res.user);
     closeAuthDrawer();
+    return res;
+  };
+
+  const deleteAccount = async (otp: string): Promise<ConfirmDeleteAccountResponse> => {
+    try {
+      const res = await confirmDeleteAccount(otp);
+      return res;
+    } finally {
+      clearSessionAnalysisCache();
+      setUser(null);
+    }
   };
 
   const logout = async () => {
@@ -118,6 +147,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login,
         register,
+        verifyEmailOtp,
+        deleteAccount,
         logout,
         refreshUser,
         updateUser,

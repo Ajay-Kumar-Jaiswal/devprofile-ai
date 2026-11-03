@@ -223,7 +223,44 @@ export interface UserOut {
   default_profile_username: string | null;
   connected_github: ConnectedGitHubOut | null;
   has_password?: boolean;
+  is_verified?: boolean;
   created_at: string;
+}
+
+export interface RegisterResponse {
+  user: UserOut;
+  requires_verification: boolean;
+  email: string;
+  message: string;
+}
+
+export interface VerifyOtpRequest {
+  email: string;
+  otp: string;
+}
+
+export interface ResendOtpRequest {
+  email: string;
+}
+
+export interface ResendOtpResponse {
+  message: string;
+  cooldown_seconds: number;
+}
+
+export interface DeleteAccountOtpResponse {
+  success: boolean;
+  message: string;
+  cooldown_seconds: number;
+}
+
+export interface ConfirmDeleteAccountRequest {
+  otp: string;
+}
+
+export interface ConfirmDeleteAccountResponse {
+  success: boolean;
+  message: string;
 }
 
 export interface AuthResponse {

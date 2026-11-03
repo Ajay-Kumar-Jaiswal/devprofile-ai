@@ -12,6 +12,7 @@ class UserRegisterRequest(BaseModel):
     password: str = Field(..., min_length=8, description="Password must be at least 8 characters")
     full_name: Optional[str] = None
     default_profile_username: Optional[str] = None
+    terms_accepted: bool = Field(True, description="Whether user accepted Terms & Conditions and Privacy Policy")
 
 
 class UserLoginRequest(BaseModel):
@@ -36,7 +37,48 @@ class UserOut(BaseModel):
     default_profile_username: Optional[str] = None
     connected_github: Optional[ConnectedGitHubOut] = None
     has_password: bool = False
+    is_verified: bool = True
+    terms_accepted_version: Optional[str] = None
     created_at: datetime
+
+
+class RegisterResponse(BaseModel):
+    success: bool = True
+    user: Optional[UserOut] = None
+    email: str
+    requires_verification: bool = True
+    message: str
+    cooldown_seconds: int = 60
+
+
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str = Field(..., min_length=6, max_length=6, description="6-digit numeric OTP code")
+
+
+class ResendOtpRequest(BaseModel):
+    email: EmailStr
+
+
+class ResendOtpResponse(BaseModel):
+    success: bool = True
+    message: str
+    cooldown_seconds: int = 60
+
+
+class DeleteAccountOtpResponse(BaseModel):
+    success: bool = True
+    message: str
+    cooldown_seconds: int = 60
+
+
+class ConfirmDeleteAccountRequest(BaseModel):
+    otp: str = Field(..., min_length=6, max_length=6, description="6-digit numeric deletion verification code")
+
+
+class ConfirmDeleteAccountResponse(BaseModel):
+    success: bool = True
+    message: str
 
 
 class AuthResponse(BaseModel):

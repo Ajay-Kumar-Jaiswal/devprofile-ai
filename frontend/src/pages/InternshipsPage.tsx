@@ -903,7 +903,7 @@ export const InternshipsPage: React.FC = () => {
                   {/* Metadata Row: Location, Work Mode, Salary, Duration */}
                   <div className="flex items-center gap-2 flex-wrap text-xs text-slate-400 pt-0.5">
                     {item.location && (
-                      <span className="inline-flex items-center gap-1 text-slate-300 bg-transparent px-2 py-1 rounded-lg border border-slate-800/80">
+                      <span className="inline-flex items-center gap-1 text-slate-300 bg-transparent px-2 py-1 rounded-lg border border-slate-800/40">
                         <MapPin className="w-3.5 h-3.5 text-slate-500" />
                         <span>{item.location}</span>
                       </span>
@@ -925,7 +925,7 @@ export const InternshipsPage: React.FC = () => {
                     )}
 
                     {item.duration && (
-                      <span className="inline-flex items-center gap-1 text-slate-400 text-[11px] bg-transparent px-2 py-1 rounded-lg border border-slate-800/80">
+                      <span className="inline-flex items-center gap-1 text-slate-400 text-[11px] bg-transparent px-2 py-1 rounded-lg border border-slate-800/40">
                         <Calendar className="w-3.5 h-3.5" />
                         <span>{item.duration}</span>
                       </span>
@@ -935,7 +935,7 @@ export const InternshipsPage: React.FC = () => {
 
                 {/* Candidate Fit Reason Snippet */}
                 {item.match?.fit_reasons && item.match.fit_reasons.length > 0 && (
-                  <p className="text-xs text-slate-300 bg-transparent p-3 rounded-xl border border-slate-800/80 leading-relaxed">
+                  <p className="text-xs text-slate-300 bg-transparent p-3 rounded-xl border border-slate-800/40 leading-relaxed">
                     <span className="text-violet-400 font-semibold mr-1.5 font-mono text-[11px] uppercase tracking-wider">
                       Alignment:
                     </span>

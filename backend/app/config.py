@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = False  # Set True in production over HTTPS
     COOKIE_SAMESITE: str = "lax"
 
+    # Resend Email Configuration (HTTPS API)
+    RESEND_API_KEY: Optional[str] = None
+    RESEND_FROM_EMAIL: str = "DevProfile AI <onboarding@resend.dev>"
+    OTP_EXPIRATION_MINUTES: int = 10
+    OTP_MAX_ATTEMPTS: int = 5
+    OTP_RESEND_COOLDOWN_SECONDS: int = 60
+
     # GitHub OAuth Configuration
     GITHUB_CLIENT_ID: Optional[str] = None
     GITHUB_CLIENT_SECRET: Optional[str] = None

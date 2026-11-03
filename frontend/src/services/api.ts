@@ -3,6 +3,10 @@ import type {
   HealthResponse,
   AIAnalysisEnvelope,
   AuthResponse,
+  RegisterResponse,
+  ResendOtpResponse,
+  DeleteAccountOtpResponse,
+  ConfirmDeleteAccountResponse,
   UserOut,
   GitHubOAuthUrlResponse,
   HistoryListResponse,
@@ -223,7 +227,13 @@ export async function retryAIAnalysis(username: string, isDemo: boolean = false)
 // SaaS Authentication API Functions
 // ============================================================================
 
-export async function registerUser(email: string, password: string, fullName?: string, defaultProfile?: string): Promise<AuthResponse> {
+export async function registerUser(
+  email: string,
+  password: string,
+  fullName?: string,
+  defaultProfile?: string,
+  termsAccepted: boolean = true
+): Promise<RegisterResponse> {
   const res = await safeFetch(`${API_BASE_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -232,7 +242,22 @@ export async function registerUser(email: string, password: string, fullName?: s
       password,
       full_name: fullName || null,
       default_profile_username: defaultProfile || null,
+      terms_accepted: termsAccepted,
     }),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
+export async function verifyOtp(email: string, otp: string): Promise<AuthResponse> {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/verify-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ email, otp }),
     credentials: 'include',
   });
 
@@ -244,6 +269,20 @@ export async function registerUser(email: string, password: string, fullName?: s
     setStoredToken(data.token);
   }
   return data;
+}
+
+export async function resendOtp(email: string): Promise<ResendOtpResponse> {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/resend-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ email }),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
 }
 
 export async function loginUser(email: string, password: string): Promise<AuthResponse> {
@@ -433,6 +472,34 @@ export async function setupCredentials(
   if (!res.ok) {
     await handleResponseError(res);
   }
+  return await res.json();
+}
+
+export async function requestDeleteAccountOtp(): Promise<DeleteAccountOtpResponse> {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/delete-account/request-otp`, {
+    method: 'POST',
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json', Accept: 'application/json' },
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
+export async function confirmDeleteAccount(otp: string): Promise<ConfirmDeleteAccountResponse> {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/delete-account/confirm`, {
+    method: 'POST',
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ otp }),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  removeStoredToken();
   return await res.json();
 }
 

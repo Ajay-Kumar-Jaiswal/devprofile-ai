@@ -55,6 +55,38 @@ def reset_settings_allowlist():
     settings.ALLOWED_GITHUB_ACCOUNTS = None
 
 
+@pytest.fixture(autouse=True)
+def mock_resend_email(monkeypatch):
+    """
+    Mock Resend API calls across all automated tests.
+    Never sends real emails during tests. Captures sent emails for test verification.
+    """
+    sent_emails = []
+
+    async def fake_send_otp_email(to_email: str, otp_code: str, api_key=None, from_email=None):
+        sent_emails.append({"to": to_email, "otp": otp_code, "type": "verification"})
+        return {"success": True, "id": f"mock-{len(sent_emails)}"}
+
+    async def fake_send_deletion_otp_email(to_email: str, otp_code: str, api_key=None, from_email=None):
+        sent_emails.append({"to": to_email, "otp": otp_code, "type": "deletion"})
+        return {"success": True, "id": f"mock-{len(sent_emails)}"}
+
+    monkeypatch.setattr("app.routers.auth.send_otp_email", fake_send_otp_email)
+    monkeypatch.setattr("app.services.email_service.send_otp_email", fake_send_otp_email)
+    monkeypatch.setattr("app.routers.auth.send_account_deletion_otp_email", fake_send_deletion_otp_email)
+    monkeypatch.setattr("app.services.email_service.send_account_deletion_otp_email", fake_send_deletion_otp_email)
+    return sent_emails
+
+
+@pytest.fixture(autouse=True)
+def reset_otp_rate_limiter():
+    """Ensures OTP rate limiter and cooldowns are reset between test runs."""
+    from app.services.otp_service import otp_rate_limiter
+    otp_rate_limiter.clear()
+    yield
+    otp_rate_limiter.clear()
+
+
 @pytest.fixture
 def test_user():
     """Creates and returns an active test user in the database."""

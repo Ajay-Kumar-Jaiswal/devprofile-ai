@@ -57,10 +57,10 @@ def get_current_user(
         )
 
     user = db.query(User).filter(User.id == user_id_int).first()
-    if not user or not user.is_active:
+    if not user or not user.is_active or not getattr(user, "is_verified", True):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User account not found or has been deactivated.",
+            detail="User account not found, deactivated, or email not verified.",
         )
 
     # Enforce personal instance allowlist if configured
@@ -98,7 +98,7 @@ def get_optional_current_user(
         return None
 
     user = db.query(User).filter(User.id == user_id_int).first()
-    if not user or not user.is_active:
+    if not user or not user.is_active or not getattr(user, "is_verified", True):
         return None
 
     # Enforce personal instance allowlist if configured

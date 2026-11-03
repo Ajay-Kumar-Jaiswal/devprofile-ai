@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AnalysisProvider } from './context/AnalysisContext';
 import { Navbar } from './components/Navbar';
@@ -9,6 +9,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignUpPage } from './pages/SignUpPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { VerifyOtpPage } from './pages/VerifyOtpPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
 import { HistoryPage } from './pages/HistoryPage';
@@ -17,6 +18,8 @@ import { AIInsightsPage } from './pages/AIInsightsPage';
 import { ImprovementsPage } from './pages/ImprovementsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { InternshipsPage } from './pages/InternshipsPage';
+import { TermsPage } from './pages/TermsPage';
+import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
 
@@ -41,8 +44,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 const AppLayout: React.FC = () => {
-  const location = useLocation();
-  const isLandingPage = location.pathname === '/';
 
   return (
     <div className="min-h-screen text-slate-100 flex flex-col selection:bg-violet-500/30 selection:text-violet-200 w-full bg-[#0B0D12] relative overflow-x-hidden">
@@ -78,6 +79,7 @@ const AppLayout: React.FC = () => {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/verify-otp" element={<VerifyOtpPage />} />
           <Route path="/auth/callback" element={<OAuthCallbackPage />} />
           <Route
             path="/onboarding"
@@ -135,21 +137,35 @@ const AppLayout: React.FC = () => {
               </ProtectedRoute>
             }
           />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 
-      {!isLandingPage && (
-        <footer className="border-t border-[#232736]/70 bg-[#0B0D12]/80 backdrop-blur-md py-3.5 px-4 text-center text-xs text-slate-400 relative z-10">
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
-            <span className="font-semibold text-white">DevProfile AI</span>
-            <span>&bull;</span>
-            <span>Intelligent GitHub Profile &amp; Repository Analysis</span>
-            <span>&bull;</span>
-            <span>&copy; {new Date().getFullYear()} All rights reserved.</span>
-          </div>
-        </footer>
-      )}
+      <footer className="border-t border-[#232736]/70 bg-[#0B0D12]/80 backdrop-blur-md py-3.5 px-4 text-center text-xs text-slate-400 relative z-10">
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
+          <span className="font-semibold text-white">DevProfile AI</span>
+          <span>&bull;</span>
+          <span>Intelligent GitHub Profile &amp; Repository Analysis</span>
+          <span>&bull;</span>
+          <Link
+            to="/terms"
+            className="text-slate-400 hover:text-slate-200 transition-colors underline-offset-4 hover:underline cursor-pointer"
+          >
+            Terms &amp; Conditions
+          </Link>
+          <span>&bull;</span>
+          <Link
+            to="/privacy"
+            className="text-slate-400 hover:text-slate-200 transition-colors underline-offset-4 hover:underline cursor-pointer"
+          >
+            Privacy Policy
+          </Link>
+          <span>&bull;</span>
+          <span>&copy; {new Date().getFullYear()} All rights reserved.</span>
+        </div>
+      </footer>
     </div>
   );
 };

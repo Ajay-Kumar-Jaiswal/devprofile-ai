@@ -7,6 +7,7 @@ import {
   getGitHubLinkUrl,
   changePassword,
   setupCredentials,
+  requestDeleteAccountOtp,
   ApiError,
 } from '../services/api';
 import { GithubIcon } from '../components/GithubIcon';
@@ -24,10 +25,16 @@ import {
   EyeOff,
   Mail,
   KeyRound,
+  Trash2,
+  AlertTriangle,
+  Clock,
+  RotateCw,
+  ArrowRight,
+  X,
 } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
-  const { user, refreshUser, updateUser, logout } = useAuth();
+  const { user, refreshUser, updateUser, deleteAccount, logout } = useAuth();
   const navigate = useNavigate();
 
   const hasLocalPassword = Boolean(user?.has_password);
@@ -69,6 +76,151 @@ export const SettingsPage: React.FC = () => {
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [setupSuccess, setSetupSuccess] = useState<string | null>(null);
   const [setupError, setSetupError] = useState<string | null>(null);
+
+  // Permanent Account Deletion state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<'warning' | 'otp' | 'success'>('warning');
+  const [deleteOtpDigits, setDeleteOtpDigits] = useState<string[]>(Array(6).fill(''));
+  const [isRequestingDeleteOtp, setIsRequestingDeleteOtp] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState<string | null>(null);
+  const [deleteExpireSeconds, setDeleteExpireSeconds] = useState(10 * 60);
+  const [deleteResendCooldown, setDeleteResendCooldown] = useState(60);
+  const deleteInputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
+
+  // Expiration and resend timers for account deletion modal
+  React.useEffect(() => {
+    if (!isDeleteModalOpen || deleteStep !== 'otp') return;
+    if (deleteExpireSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setDeleteExpireSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isDeleteModalOpen, deleteStep, deleteExpireSeconds]);
+
+  React.useEffect(() => {
+    if (!isDeleteModalOpen || deleteStep !== 'otp') return;
+    if (deleteResendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setDeleteResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isDeleteModalOpen, deleteStep, deleteResendCooldown]);
+
+  const handleOpenDeleteModal = () => {
+    setIsDeleteModalOpen(true);
+    setDeleteStep('warning');
+    setDeleteError(null);
+    setDeleteOtpDigits(Array(6).fill(''));
+  };
+
+  const handleCloseDeleteModal = () => {
+    if (isConfirmingDelete) return;
+    setIsDeleteModalOpen(false);
+    setDeleteError(null);
+  };
+
+  const handleRequestDeleteOtp = async () => {
+    setIsRequestingDeleteOtp(true);
+    setDeleteError(null);
+    try {
+      const res = await requestDeleteAccountOtp();
+      setDeleteStep('otp');
+      setDeleteExpireSeconds(10 * 60);
+      setDeleteResendCooldown(res.cooldown_seconds || 60);
+      setDeleteOtpDigits(Array(6).fill(''));
+      setTimeout(() => {
+        deleteInputRefs.current[0]?.focus();
+      }, 100);
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        setDeleteError(err.detail);
+      } else {
+        setDeleteError(err?.message || 'Failed to dispatch account deletion code.');
+      }
+    } finally {
+      setIsRequestingDeleteOtp(false);
+    }
+  };
+
+  const handleDeleteDigitChange = (index: number, value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    const char = cleaned ? cleaned.slice(-1) : '';
+    const newDigits = [...deleteOtpDigits];
+    newDigits[index] = char;
+    setDeleteOtpDigits(newDigits);
+    setDeleteError(null);
+
+    if (char && index < 5) {
+      deleteInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleDeleteKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      if (!deleteOtpDigits[index] && index > 0) {
+        const newDigits = [...deleteOtpDigits];
+        newDigits[index - 1] = '';
+        setDeleteOtpDigits(newDigits);
+        deleteInputRefs.current[index - 1]?.focus();
+      } else if (deleteOtpDigits[index]) {
+        const newDigits = [...deleteOtpDigits];
+        newDigits[index] = '';
+        setDeleteOtpDigits(newDigits);
+      }
+    } else if (e.key === 'ArrowLeft' && index > 0) {
+      deleteInputRefs.current[index - 1]?.focus();
+    } else if (e.key === 'ArrowRight' && index < 5) {
+      deleteInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleDeletePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text/plain').replace(/\D/g, '');
+    if (!pasted) return;
+
+    const newDigits = [...deleteOtpDigits];
+    const len = Math.min(pasted.length, 6);
+    for (let i = 0; i < len; i++) {
+      newDigits[i] = pasted[i];
+    }
+    setDeleteOtpDigits(newDigits);
+    setDeleteError(null);
+
+    const focusIdx = Math.min(len, 5);
+    deleteInputRefs.current[focusIdx]?.focus();
+  };
+
+  const handleConfirmPermanentDelete = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const otpCode = deleteOtpDigits.join('');
+    if (otpCode.length < 6) {
+      setDeleteError('Please enter all 6 digits of the deletion code.');
+      return;
+    }
+
+    setIsConfirmingDelete(true);
+    setDeleteError(null);
+
+    try {
+      const res = await deleteAccount(otpCode);
+      setDeleteStep('success');
+      setDeleteSuccessMessage(res.message || 'Your account has been permanently deleted.');
+      setTimeout(() => {
+        navigate('/login?deleted=true');
+      }, 1200);
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        setDeleteError(err.detail);
+      } else {
+        setDeleteError(err?.message || 'Failed to delete account. Please verify the code.');
+      }
+    } finally {
+      setIsConfirmingDelete(false);
+    }
+  };
 
   React.useEffect(() => {
     setDefaultHandle(user?.default_profile_username || '');
@@ -835,7 +987,293 @@ export const SettingsPage: React.FC = () => {
             <span>Sign Out</span>
           </button>
         </div>
+
+        {/* 6. Danger Zone — Permanent Account Deletion */}
+        <div className="p-6 sm:p-7 rounded-2xl border border-rose-500/25 bg-rose-500/[0.03] shadow-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-rose-400">
+              <Trash2 className="w-4 h-4 shrink-0" />
+              <h2 className="text-sm font-bold text-white">Danger Zone &bull; Delete Account</h2>
+            </div>
+            <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
+              Permanently delete your DevProfile AI account, portfolio scores, analysis runs, saved internships, and connected identities. Once initiated, this action cannot be undone.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleOpenDeleteModal}
+            className="px-4 py-2.5 rounded-xl bg-rose-600/90 hover:bg-rose-600 active:scale-[0.98] text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-md shadow-rose-950/40 shrink-0 cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete Account</span>
+          </button>
+        </div>
       </div>
+
+      {/* Account Deletion Confirmation & OTP Modal */}
+      {isDeleteModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-account-modal-title"
+        >
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-[#0B0D12]/80 backdrop-blur-md transition-opacity duration-200"
+            onClick={handleCloseDeleteModal}
+            aria-hidden="true"
+          />
+
+          {/* Modal Card */}
+          <div className="relative w-full max-w-lg my-auto bg-[#101723]/95 backdrop-blur-xl border border-rose-500/30 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden z-10 transition-all duration-200 animate-fadeIn">
+            {/* Top red danger accent glow */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-16 bg-rose-500/15 rounded-full blur-2xl pointer-events-none" />
+
+            {/* Header */}
+            <div className="p-6 border-b border-rose-500/15 flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-center text-rose-400 shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 id="delete-account-modal-title" className="text-base font-bold text-white tracking-tight">
+                    {deleteStep === 'warning' && 'Permanently Delete Account'}
+                    {deleteStep === 'otp' && 'Verify Deletion Code'}
+                    {deleteStep === 'success' && 'Account Deleted'}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {deleteStep === 'warning' && 'Review the data that will be destroyed before proceeding.'}
+                    {deleteStep === 'otp' && 'Enter the single-use authorization code sent to your email.'}
+                    {deleteStep === 'success' && 'Redirecting to login...'}
+                  </p>
+                </div>
+              </div>
+
+              {deleteStep !== 'success' && (
+                <button
+                  type="button"
+                  onClick={handleCloseDeleteModal}
+                  disabled={isConfirmingDelete}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5">
+              {/* Error Banner */}
+              {deleteError && (
+                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-xs text-rose-300 flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed flex-1">{deleteError}</span>
+                </div>
+              )}
+
+              {/* STEP 1: Warning & Request OTP */}
+              {deleteStep === 'warning' && (
+                <div className="space-y-4">
+                  <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-200 leading-relaxed">
+                    <strong>Critical Warning:</strong> This operation is permanent and irreversible. Your account and all associated records for <span className="font-mono text-white font-semibold">{user?.email || 'this account'}</span> will be permanently erased.
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-navy-950/80 border border-slate-800 text-xs text-slate-300 space-y-2">
+                    <p className="font-semibold text-white">The following data will be permanently deleted:</p>
+                    <ul className="list-disc pl-5 space-y-1 text-slate-400 text-[11px]">
+                      <li>All GitHub portfolio scores, language analytics, and aggregate metrics</li>
+                      <li>Historical analysis reports, comparison snapshots, and AI feedback</li>
+                      <li>Saved internship listings, bookmarks, and application tracking notes</li>
+                      <li>Placement drive preparation roadmaps and skill recommendation statuses</li>
+                      <li>Linked GitHub OAuth credentials and local password hashes</li>
+                    </ul>
+                  </div>
+
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    You can register again in the future using this same email address, but none of your previous data will be restored.
+                  </p>
+
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={handleCloseDeleteModal}
+                      disabled={isRequestingDeleteOtp}
+                      className="px-4 py-2 rounded-xl bg-navy-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRequestDeleteOtp}
+                      disabled={isRequestingDeleteOtp}
+                      className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition-colors shadow-md shadow-rose-950/50 flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {isRequestingDeleteOtp ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Sending code...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Send Deletion Code</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2: OTP Verification & Final Confirmation */}
+              {deleteStep === 'otp' && (
+                <form onSubmit={handleConfirmPermanentDelete} className="space-y-5">
+                  <div className="p-3 rounded-xl bg-navy-950/80 border border-slate-800 text-xs flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Mail className="w-4 h-4 text-rose-400 shrink-0" />
+                      <span className="text-slate-300 truncate font-mono text-[11px]">
+                        {user?.email}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-rose-400 font-medium shrink-0">
+                      Deletion Code Sent
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2 px-1">
+                      <label className="text-xs font-medium text-slate-300">
+                        6-Digit Authorization Code
+                      </label>
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                        <Clock className="w-3.5 h-3.5 text-slate-500" />
+                        <span>
+                          Expires in{' '}
+                          <span
+                            className={`font-mono font-medium ${
+                              deleteExpireSeconds <= 60
+                                ? 'text-rose-400'
+                                : deleteExpireSeconds <= 180
+                                ? 'text-amber-400'
+                                : 'text-slate-300'
+                            }`}
+                          >
+                            {Math.floor(deleteExpireSeconds / 60)
+                              .toString()
+                              .padStart(2, '0')}
+                            :
+                            {(deleteExpireSeconds % 60).toString().padStart(2, '0')}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 6 Digit Inputs */}
+                    <div className="grid grid-cols-6 gap-2 sm:gap-2.5">
+                      {deleteOtpDigits.map((digit, idx) => (
+                        <input
+                          key={idx}
+                          ref={(el) => {
+                            deleteInputRefs.current[idx] = el;
+                          }}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleDeleteDigitChange(idx, e.target.value)}
+                          onKeyDown={(e) => handleDeleteKeyDown(idx, e)}
+                          onPaste={idx === 0 ? handleDeletePaste : undefined}
+                          disabled={isConfirmingDelete || deleteExpireSeconds <= 0}
+                          aria-label={`Deletion digit ${idx + 1}`}
+                          className={`w-full h-12 text-center text-xl font-bold font-mono rounded-xl bg-navy-950/80 border text-white transition-all focus:outline-none ${
+                            digit
+                              ? 'border-rose-500/80 bg-rose-950/20 ring-2 ring-rose-500/20'
+                              : 'border-slate-800 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
+                          } ${deleteExpireSeconds <= 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+                    <span>Didn't receive the email?</span>
+                    <button
+                      type="button"
+                      onClick={handleRequestDeleteOtp}
+                      disabled={isRequestingDeleteOtp || deleteResendCooldown > 0}
+                      className="inline-flex items-center gap-1.5 font-semibold text-rose-400 hover:text-rose-300 disabled:text-slate-500 disabled:pointer-events-none transition-colors"
+                    >
+                      {isRequestingDeleteOtp ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Sending...</span>
+                        </>
+                      ) : deleteResendCooldown > 0 ? (
+                        <>
+                          <RotateCw className="w-3.5 h-3.5" />
+                          <span>Resend in {deleteResendCooldown}s</span>
+                        </>
+                      ) : (
+                        <>
+                          <RotateCw className="w-3.5 h-3.5" />
+                          <span>Resend deletion code</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={handleCloseDeleteModal}
+                      disabled={isConfirmingDelete}
+                      className="px-4 py-2 rounded-xl bg-navy-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={
+                        isConfirmingDelete ||
+                        deleteOtpDigits.join('').length < 6 ||
+                        deleteExpireSeconds <= 0
+                      }
+                      className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition-colors shadow-md shadow-rose-950/50 flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                    >
+                      {isConfirmingDelete ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Permanently deleting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Confirm Permanent Deletion</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* STEP 3: Success Banner */}
+              {deleteStep === 'success' && (
+                <div className="py-6 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400 mx-auto">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-base font-bold text-white">Account Successfully Deleted</h4>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                    {deleteSuccessMessage}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

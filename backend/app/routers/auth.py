@@ -13,6 +13,13 @@ from app.saas_models import (
     UserRegisterRequest,
     UserLoginRequest,
     AuthResponse,
+    RegisterResponse,
+    VerifyOtpRequest,
+    ResendOtpRequest,
+    ResendOtpResponse,
+    DeleteAccountOtpResponse,
+    ConfirmDeleteAccountRequest,
+    ConfirmDeleteAccountResponse,
     UserOut,
     ConnectedGitHubOut,
     GitHubOAuthUrlResponse,
@@ -36,6 +43,23 @@ from app.services.auth_service import (
     generate_oauth_state,
     verify_and_consume_oauth_state,
 )
+from app.services.email_service import (
+    send_otp_email,
+    send_account_deletion_otp_email,
+    EmailDeliveryError,
+)
+from app.services.otp_service import (
+    create_and_store_otp,
+    verify_otp_and_activate_user,
+    create_and_store_deletion_otp,
+    verify_deletion_otp,
+    otp_rate_limiter,
+    OTPVerificationError,
+)
+from app.services.account_deletion_service import (
+    permanently_delete_user_account,
+    AccountDeletionError,
+)
 from app.services.url_validator import normalize_github_input
 
 logger = logging.getLogger("devprofile_ai.auth")
@@ -55,6 +79,7 @@ def user_to_out(user: User) -> UserOut:
         )
 
     has_pwd = user.has_password
+    is_ver = bool(getattr(user, "is_verified", True))
 
     return UserOut(
         id=user.id,
@@ -63,22 +88,37 @@ def user_to_out(user: User) -> UserOut:
         default_profile_username=user.default_profile_username,
         connected_github=connected_gh,
         has_password=has_pwd,
+        is_verified=is_ver,
+        terms_accepted_version=getattr(user, "terms_accepted_version", None),
         created_at=user.created_at,
     )
 
 
 @router.post(
     "/register",
-    response_model=AuthResponse,
+    response_model=RegisterResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Register a new user account with email and password",
+    summary="Register a new user account with email and password (dispatches 6-digit verification code via Resend)",
 )
 async def register_user(
     body: UserRegisterRequest,
-    response: Response,
+    request: Request,
     db: Session = Depends(get_db),
 ):
+    client_ip = request.client.host if request.client else "unknown"
+    if not otp_rate_limiter.check_ip_generate_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many registration requests from this network. Please wait a few minutes before trying again.",
+        )
+
     clean_email = body.email.lower().strip()
+
+    if not body.terms_accepted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You must accept the Terms & Conditions and Privacy Policy to create an account.",
+        )
 
     # Check for existing email
     existing_user = db.query(User).filter(User.email == clean_email).first()
@@ -107,18 +147,137 @@ async def register_user(
         full_name=body.full_name.strip() if body.full_name else None,
         default_profile_username=normalized_default,
         is_active=True,
+        is_verified=False,
+        terms_accepted=True,
+        terms_accepted_version="2026-11-01",
+        terms_accepted_at=datetime.now(timezone.utc),
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
-    token = create_access_token({"sub": str(new_user.id), "email": new_user.email})
+    otp_rate_limiter.record_ip_generate(client_ip)
+    plaintext_otp, _ = create_and_store_otp(
+        db,
+        new_user,
+        expiration_minutes=settings.OTP_EXPIRATION_MINUTES,
+        max_attempts=settings.OTP_MAX_ATTEMPTS,
+    )
+
+    try:
+        await send_otp_email(clean_email, plaintext_otp)
+    except EmailDeliveryError as exc:
+        logger.error(f"Failed to send verification email: {exc}")
+        db.delete(new_user)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Could not send verification email. {str(exc)}",
+        )
+
+    return RegisterResponse(
+        success=True,
+        user=user_to_out(new_user),
+        email=clean_email,
+        requires_verification=True,
+        message="Registration successful! We sent a 6-digit verification code to your email. Please verify to activate your account.",
+        cooldown_seconds=settings.OTP_RESEND_COOLDOWN_SECONDS,
+    )
+
+
+@router.post(
+    "/verify-otp",
+    response_model=AuthResponse,
+    summary="Verify 6-digit email OTP and activate user account",
+)
+async def verify_otp(
+    body: VerifyOtpRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    client_ip = request.client.host if request.client else "unknown"
+    if not otp_rate_limiter.check_ip_verify_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many verification attempts from this network. Please wait a few minutes before trying again.",
+        )
+    otp_rate_limiter.record_ip_verify(client_ip)
+
+    try:
+        user = verify_otp_and_activate_user(db, body.email, body.otp)
+    except OTPVerificationError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.message,
+        )
+
+    token = create_access_token({"sub": str(user.id), "email": user.email})
     set_auth_cookie(response, token)
 
     return AuthResponse(
-        user=user_to_out(new_user),
+        user=user_to_out(user),
         token=token,
-        message="Account registered successfully.",
+        message="Email successfully verified. Welcome to DevProfile AI!",
+    )
+
+
+@router.post(
+    "/resend-otp",
+    response_model=ResendOtpResponse,
+    summary="Resend a fresh 6-digit verification code to the registered email",
+)
+async def resend_otp(
+    body: ResendOtpRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    client_ip = request.client.host if request.client else "unknown"
+    if not otp_rate_limiter.check_ip_generate_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests from this network. Please wait a few minutes before trying again.",
+        )
+
+    clean_email = body.email.lower().strip()
+    cooldown = otp_rate_limiter.check_resend_cooldown(clean_email, settings.OTP_RESEND_COOLDOWN_SECONDS)
+    if cooldown > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Please wait {cooldown} seconds before requesting a new verification code.",
+        )
+
+    user = db.query(User).filter(User.email == clean_email).first()
+
+    # Prevent email enumeration: if user does not exist or is already verified, return generic message
+    if not user or getattr(user, "is_verified", True):
+        return ResendOtpResponse(
+            success=True,
+            message="If an unverified account exists for this email, a new verification code has been dispatched.",
+            cooldown_seconds=settings.OTP_RESEND_COOLDOWN_SECONDS,
+        )
+
+    otp_rate_limiter.record_ip_generate(client_ip)
+    plaintext_otp, _ = create_and_store_otp(
+        db,
+        user,
+        expiration_minutes=settings.OTP_EXPIRATION_MINUTES,
+        max_attempts=settings.OTP_MAX_ATTEMPTS,
+    )
+
+    try:
+        await send_otp_email(clean_email, plaintext_otp)
+    except EmailDeliveryError as exc:
+        logger.error(f"Failed to resend verification email: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Could not send verification email: {str(exc)}",
+        )
+
+    return ResendOtpResponse(
+        success=True,
+        message="A new 6-digit verification code has been dispatched to your email address.",
+        cooldown_seconds=settings.OTP_RESEND_COOLDOWN_SECONDS,
     )
 
 
@@ -154,6 +313,12 @@ async def login_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This account has been deactivated.",
+        )
+
+    if not getattr(user, "is_verified", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email address not verified. Please verify your email using the 6-digit code sent to your inbox.",
         )
 
     # Enforce personal instance allowlist if configured
@@ -351,6 +516,95 @@ async def setup_credentials(
         "message": "Email and password successfully configured. You can now use these credentials to sign in directly.",
         "user": user_to_out(current_user),
     }
+
+
+# ============================================================================
+# Permanent Account Deletion Flow with Email OTP Verification
+# ============================================================================
+
+@router.post(
+    "/delete-account/request-otp",
+    response_model=DeleteAccountOtpResponse,
+    summary="Request a 6-digit OTP to authorize permanent account deletion",
+)
+async def request_account_deletion_otp(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Initiates the permanent account deletion workflow for an authenticated user.
+    Dispatches a single-use 6-digit deletion OTP to the user's registered email via Resend.
+    Enforces rate limits and 60-second resend cooldowns.
+    """
+    if not current_user.email or not current_user.email.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No verified email address is associated with this account. Please configure an email address before deleting your account.",
+        )
+
+    client_ip = request.client.host if request.client else "unknown"
+
+    try:
+        raw_otp, _ = create_and_store_deletion_otp(db, current_user, client_ip)
+    except OTPVerificationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message)
+
+    try:
+        await send_account_deletion_otp_email(current_user.email, raw_otp)
+    except EmailDeliveryError as exc:
+        logger.error(f"Failed to dispatch account deletion OTP: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Could not send deletion confirmation email: {str(exc)}",
+        )
+
+    return DeleteAccountOtpResponse(
+        success=True,
+        message=f"A 6-digit deletion verification code has been dispatched to {current_user.email}. Enter the code to permanently delete your account.",
+        cooldown_seconds=settings.OTP_RESEND_COOLDOWN_SECONDS,
+    )
+
+
+@router.post(
+    "/delete-account/confirm",
+    response_model=ConfirmDeleteAccountResponse,
+    summary="Confirm permanent account deletion using the 6-digit OTP",
+)
+async def confirm_account_deletion(
+    body: ConfirmDeleteAccountRequest,
+    request: Request,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Verifies the single-use deletion OTP and permanently purges the user and all associated
+    records (analysis history, saved internships, recommendations, connected accounts).
+    Revokes the active session cookie and frees the email address for future registrations.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+
+    try:
+        verify_deletion_otp(db, current_user, body.otp, client_ip)
+    except OTPVerificationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message)
+
+    try:
+        permanently_delete_user_account(db, current_user)
+    except AccountDeletionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to permanently delete account: {str(exc)}",
+        )
+
+    # Invalidate active JWT session cookie
+    clear_auth_cookie(response)
+
+    return ConfirmDeleteAccountResponse(
+        success=True,
+        message="Your DevProfile AI account and all associated data have been permanently deleted.",
+    )
 
 
 # ============================================================================
@@ -612,6 +866,7 @@ async def _process_github_oauth_code(
         if not user.default_profile_username:
             user.default_profile_username = gh_login
 
+        user.is_verified = True
         user.updated_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(user)
@@ -641,9 +896,16 @@ async def _process_github_oauth_code(
                 full_name=gh_name or gh_login,
                 default_profile_username=gh_login,
                 is_active=True,
+                is_verified=True,
+                terms_accepted=True,
+                terms_accepted_version="2026-11-01",
+                terms_accepted_at=datetime.now(timezone.utc),
             )
             db.add(user)
             db.flush()
+        else:
+            # User matched via verified GitHub email
+            user.is_verified = True
 
         # Link connected GitHub account
         conn = ConnectedGitHubAccount(

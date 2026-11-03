@@ -33,6 +33,7 @@ export const AuthDrawer: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [defaultProfile, setDefaultProfile] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export const AuthDrawer: React.FC = () => {
   useEffect(() => {
     setMode(authDrawerMode);
     setError(null);
+    setTermsAccepted(false);
   }, [authDrawerMode, isAuthDrawerOpen]);
 
   // Handle ESC key to close drawer
@@ -114,6 +116,10 @@ export const AuthDrawer: React.FC = () => {
       setError('Password must be at least 8 characters in length.');
       return false;
     }
+    if (mode === 'signup' && !termsAccepted) {
+      setError('You must accept the Terms & Conditions and Privacy Policy to create an account.');
+      return false;
+    }
     return true;
   };
 
@@ -126,16 +132,22 @@ export const AuthDrawer: React.FC = () => {
 
     try {
       if (mode === 'signup') {
-        await register(
+        const res = await register(
           email.trim(),
           password,
           fullName.trim() || undefined,
-          defaultProfile.trim() || undefined
+          defaultProfile.trim() || undefined,
+          termsAccepted
         );
+        closeAuthDrawer();
+        if (res.requires_verification) {
+          navigate(`/verify-otp?email=${encodeURIComponent(email.trim())}`);
+          return;
+        }
       } else {
         await login(email.trim(), password);
+        closeAuthDrawer();
       }
-      closeAuthDrawer();
       const storedRedirect = sessionStorage.getItem('auth_redirect');
       if (storedRedirect) {
         sessionStorage.removeItem('auth_redirect');
@@ -257,6 +269,31 @@ export const AuthDrawer: React.FC = () => {
               )}
               <span>Continue with GitHub</span>
             </button>
+            {mode === 'signup' && (
+              <p className="mt-2 text-center text-[11px] text-slate-400 leading-relaxed">
+                By continuing with GitHub, you agree to DevProfile AI&rsquo;s{' '}
+                <Link
+                  to="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={closeAuthDrawer}
+                  className="text-violet-400 hover:text-violet-300 underline underline-offset-2"
+                >
+                  Terms &amp; Conditions
+                </Link>{' '}
+                and{' '}
+                <Link
+                  to="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={closeAuthDrawer}
+                  className="text-violet-400 hover:text-violet-300 underline underline-offset-2"
+                >
+                  Privacy Policy
+                </Link>
+                .
+              </p>
+            )}
           </div>
 
           {/* GitHub OAuth Setup Notice Banner */}
@@ -283,7 +320,23 @@ export const AuthDrawer: React.FC = () => {
           {error && (
             <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-              <span className="leading-relaxed">{error}</span>
+              <div className="flex-1 leading-relaxed">
+                <span>{error}</span>
+                {error.toLowerCase().includes('not verified') && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeAuthDrawer();
+                        navigate(`/verify-otp?email=${encodeURIComponent(email.trim())}`);
+                      }}
+                      className="inline-flex items-center gap-1 font-semibold text-violet-400 hover:text-violet-300 underline underline-offset-2"
+                    >
+                      Enter verification code <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -386,6 +439,49 @@ export const AuthDrawer: React.FC = () => {
                   </p>
                 </div>
               </>
+            )}
+
+            {/* Terms and Privacy Checkbox for Signup */}
+            {mode === 'signup' && (
+              <div className="pt-1">
+                <label className="flex items-start gap-2.5 cursor-pointer text-xs text-slate-300 select-none">
+                  <input
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-700 bg-navy-950 text-violet-600 focus:ring-violet-500/40 focus:ring-offset-0 cursor-pointer"
+                  />
+                  <span className="leading-relaxed text-slate-400">
+                    I agree to the{' '}
+                    <Link
+                      to="/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        closeAuthDrawer();
+                      }}
+                      className="text-violet-400 hover:text-violet-300 font-semibold underline underline-offset-2"
+                    >
+                      Terms &amp; Conditions
+                    </Link>{' '}
+                    and{' '}
+                    <Link
+                      to="/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        closeAuthDrawer();
+                      }}
+                      className="text-violet-400 hover:text-violet-300 font-semibold underline underline-offset-2"
+                    >
+                      Privacy Policy
+                    </Link>
+                    .
+                  </span>
+                </label>
+              </div>
             )}
 
             {/* 8. Existing Submit Button */}

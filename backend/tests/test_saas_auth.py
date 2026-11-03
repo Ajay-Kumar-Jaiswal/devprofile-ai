@@ -28,8 +28,7 @@ async def test_user_registration_success():
         assert data["user"]["email"] == "developer@example.com"
         assert data["user"]["full_name"] == "Alex Developer"
         assert data["user"]["default_profile_username"] == "octocat"
-        assert "token" in data
-        assert "devprofile_session" in resp.cookies
+        assert data["requires_verification"] is True
 
 
 @pytest.mark.asyncio
@@ -63,14 +62,23 @@ async def test_user_registration_short_password():
 
 
 @pytest.mark.asyncio
-async def test_user_login_success_and_logout():
+async def test_user_login_success_and_logout(mock_resend_email):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Register
-        await client.post(
+        reg = await client.post(
             "/api/auth/register",
             json={"email": "login@example.com", "password": "SecurePassword123"},
         )
+        assert reg.status_code == 201
+
+        # Verify via OTP
+        otp_code = mock_resend_email[-1]["otp"]
+        verify_resp = await client.post(
+            "/api/auth/verify-otp",
+            json={"email": "login@example.com", "otp": otp_code},
+        )
+        assert verify_resp.status_code == 200
 
         # Login
         login_resp = await client.post(
@@ -476,7 +484,7 @@ async def test_manual_public_profile_analysis_after_disconnect():
 
 
 @pytest.mark.asyncio
-async def test_change_password_success_and_subsequent_login():
+async def test_change_password_success_and_subsequent_login(mock_resend_email):
     """Verify password change with valid current password updates credentials."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -486,7 +494,13 @@ async def test_change_password_success_and_subsequent_login():
             json={"email": "pwd_user@example.com", "password": "InitialPassword123!"},
         )
         assert reg_resp.status_code == 201
-        token = reg_resp.json()["token"]
+        otp_code = mock_resend_email[-1]["otp"]
+        verify_resp = await client.post(
+            "/api/auth/verify-otp",
+            json={"email": "pwd_user@example.com", "otp": otp_code},
+        )
+        assert verify_resp.status_code == 200
+        token = verify_resp.json()["token"]
 
         # Change password
         change_resp = await client.post(
@@ -517,7 +531,7 @@ async def test_change_password_success_and_subsequent_login():
 
 
 @pytest.mark.asyncio
-async def test_change_password_incorrect_current_password():
+async def test_change_password_incorrect_current_password(mock_resend_email):
     """Verify change-password rejects incorrect current password."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -525,7 +539,13 @@ async def test_change_password_incorrect_current_password():
             "/api/auth/register",
             json={"email": "wrong_pwd@example.com", "password": "CorrectPassword123!"},
         )
-        token = reg_resp.json()["token"]
+        assert reg_resp.status_code == 201
+        otp_code = mock_resend_email[-1]["otp"]
+        verify_resp = await client.post(
+            "/api/auth/verify-otp",
+            json={"email": "wrong_pwd@example.com", "otp": otp_code},
+        )
+        token = verify_resp.json()["token"]
 
         change_resp = await client.post(
             "/api/auth/change-password",
@@ -540,7 +560,7 @@ async def test_change_password_incorrect_current_password():
 
 
 @pytest.mark.asyncio
-async def test_change_password_same_new_password_rejected():
+async def test_change_password_same_new_password_rejected(mock_resend_email):
     """Verify change-password rejects new password matching current password."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -548,7 +568,13 @@ async def test_change_password_same_new_password_rejected():
             "/api/auth/register",
             json={"email": "same_pwd@example.com", "password": "MySamePassword123!"},
         )
-        token = reg_resp.json()["token"]
+        assert reg_resp.status_code == 201
+        otp_code = mock_resend_email[-1]["otp"]
+        verify_resp = await client.post(
+            "/api/auth/verify-otp",
+            json={"email": "same_pwd@example.com", "otp": otp_code},
+        )
+        token = verify_resp.json()["token"]
 
         change_resp = await client.post(
             "/api/auth/change-password",
@@ -563,7 +589,7 @@ async def test_change_password_same_new_password_rejected():
 
 
 @pytest.mark.asyncio
-async def test_change_password_short_new_password_rejected():
+async def test_change_password_short_new_password_rejected(mock_resend_email):
     """Verify change-password rejects passwords under 8 characters."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -571,7 +597,13 @@ async def test_change_password_short_new_password_rejected():
             "/api/auth/register",
             json={"email": "short_pwd@example.com", "password": "MyValidPassword123!"},
         )
-        token = reg_resp.json()["token"]
+        assert reg_resp.status_code == 201
+        otp_code = mock_resend_email[-1]["otp"]
+        verify_resp = await client.post(
+            "/api/auth/verify-otp",
+            json={"email": "short_pwd@example.com", "otp": otp_code},
+        )
+        token = verify_resp.json()["token"]
 
         change_resp = await client.post(
             "/api/auth/change-password",
