@@ -7,6 +7,10 @@ import type {
   ResendOtpResponse,
   DeleteAccountOtpResponse,
   ConfirmDeleteAccountResponse,
+  ForgotPasswordResponse,
+  VerifyResetOtpResponse,
+  ResetPasswordResponse,
+  StorageStatsReport,
   UserOut,
   GitHubOAuthUrlResponse,
   HistoryListResponse,
@@ -420,11 +424,89 @@ export async function disconnectGitHub(): Promise<{ message: string; user: UserO
   return await res.json();
 }
 
-export async function forgotPassword(email: string): Promise<{ success: boolean; message: string; documentation: string }> {
+export async function forgotPassword(email: string): Promise<ForgotPasswordResponse> {
   const res = await safeFetch(`${API_BASE_URL}/api/auth/forgot-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ email }),
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
+export async function verifyResetOtp(email: string, otp: string): Promise<VerifyResetOtpResponse> {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/verify-reset-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ email, otp }),
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
+export async function resetPasswordWithToken(resetToken: string, newPassword: string): Promise<ResetPasswordResponse> {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ reset_token: resetToken, new_password: newPassword }),
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
+export async function resendResetOtp(email: string): Promise<ForgotPasswordResponse> {
+  const res = await safeFetch(`${API_BASE_URL}/api/auth/resend-reset-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
+export async function getStorageDiagnostics(adminKey: string): Promise<StorageStatsReport> {
+  const res = await safeFetch(`${API_BASE_URL}/api/admin/storage-stats`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      'X-Admin-Key': adminKey,
+    },
+  });
+
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+  return await res.json();
+}
+
+export async function triggerDatabaseCleanup(
+  adminKey: string,
+  options?: { retentionDays?: number; unverifiedDays?: number; batchSize?: number }
+): Promise<any> {
+  const params = new URLSearchParams();
+  if (options?.retentionDays !== undefined) params.append('retention_days', String(options.retentionDays));
+  if (options?.unverifiedDays !== undefined) params.append('unverified_threshold_days', String(options.unverifiedDays));
+  if (options?.batchSize !== undefined) params.append('batch_size', String(options.batchSize));
+
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  const res = await safeFetch(`${API_BASE_URL}/api/admin/run-cleanup${qs}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'X-Admin-Key': adminKey,
+    },
   });
 
   if (!res.ok) {

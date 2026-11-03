@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     COOKIE_SECURE: bool = False  # Set True in production over HTTPS
     COOKIE_SAMESITE: str = "lax"
+    ADMIN_API_KEY: Optional[str] = None  # Admin key for storage monitoring & cleanup trigger
 
     # Resend Email Configuration (HTTPS API)
     RESEND_API_KEY: Optional[str] = None

@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-DevProfile AI — Database Migration: Email OTP Verification
+DevProfile AI — Database Migration Runner
 
-Adds `is_verified` column to `users` table (defaulting to TRUE for existing users)
-and creates `email_verification_otps` table with required constraints and indexes.
-Safely handles both SQLite and PostgreSQL. Idempotent and non-destructive.
+Applies all pending Alembic migrations up to head (including is_verified,
+terms_accepted, and OTP verification tables) for both SQLite and PostgreSQL.
 """
 
 import sys
@@ -14,39 +13,29 @@ from pathlib import Path
 backend_dir = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(backend_dir))
 
-from sqlalchemy import text
-from app.database import engine, Base
-import app.db_models  # noqa: F401
+from alembic.config import Config
+from alembic import command
+from app.database import db_url, init_db
 
 
 def run_migration():
-    print("Starting DevProfile AI Email OTP database migration...")
+    print("Starting DevProfile AI Alembic database migration...")
 
-    # 1. Ensure all defined metadata tables (including email_verification_otps) exist
-    Base.metadata.create_all(bind=engine)
-    print("Metadata tables verified/created.")
+    alembic_ini = backend_dir / "alembic.ini"
+    if not alembic_ini.exists():
+        print(f"Error: alembic.ini not found at {alembic_ini}")
+        sys.exit(1)
 
-    # 2. Add is_verified column to users table if not already present
-    with engine.connect() as conn:
-        try:
-            # Check if column already exists
-            db_dialect = engine.dialect.name
-            if db_dialect == "postgresql":
-                conn.execute(
-                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT TRUE")
-                )
-            else:
-                # SQLite
-                conn.execute(
-                    text("ALTER TABLE users ADD COLUMN is_verified BOOLEAN NOT NULL DEFAULT 1")
-                )
-            conn.commit()
-            print("Successfully added 'is_verified' column to 'users' table.")
-        except Exception as e:
-            # Column likely already exists
-            print(f"'is_verified' column check: {e}")
+    cfg = Config(str(alembic_ini))
+    cfg.set_main_option("sqlalchemy.url", db_url)
 
-    print("Migration completed successfully.")
+    # Upgrade to head
+    command.upgrade(cfg, "head")
+    print("Alembic migrations applied to head successfully.")
+
+    # Run init_db check to ensure complete consistency
+    init_db()
+    print("Database initialization verification complete.")
 
 
 if __name__ == "__main__":

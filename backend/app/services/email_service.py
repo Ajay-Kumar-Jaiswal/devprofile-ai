@@ -489,3 +489,256 @@ async def send_otp_email(
         raise EmailDeliveryError(
             "Could not connect to email delivery service. Please check network connection and try again."
         ) from exc
+
+
+def build_password_reset_otp_email_html(otp_code: str, recipient_email: str) -> str:
+    """
+    Renders a responsive, branded HTML email for DevProfile AI password recovery.
+    Matches the platform's dark theme with violet accents.
+    """
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset Your DevProfile AI Password</title>
+  <style>
+    body {{
+      margin: 0;
+      padding: 0;
+      background-color: #0b0d12;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #cbd5e1;
+    }}
+    .wrapper {{
+      max-width: 560px;
+      margin: 40px auto;
+      background: #101723;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    }}
+    .header {{
+      padding: 32px 32px 24px;
+      text-align: center;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+      background: linear-gradient(180deg, rgba(124, 58, 237, 0.08) 0%, rgba(16, 23, 35, 0) 100%);
+    }}
+    .brand {{
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #ffffff;
+      margin: 0;
+    }}
+    .brand span {{
+      color: #a78bfa;
+    }}
+    .tagline {{
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }}
+    .content {{
+      padding: 32px;
+    }}
+    h1 {{
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0 0 12px;
+      letter-spacing: -0.3px;
+    }}
+    p {{
+      font-size: 14px;
+      line-height: 1.6;
+      color: #94a3b8;
+      margin: 0 0 24px;
+    }}
+    .otp-container {{
+      background: rgba(124, 58, 237, 0.06);
+      border: 1px dashed rgba(167, 139, 250, 0.35);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      margin: 28px 0;
+    }}
+    .otp-label {{
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+      color: #a78bfa;
+      margin-bottom: 8px;
+    }}
+    .otp-code {{
+      font-family: 'SF Mono', Consolas, Monaco, monospace;
+      font-size: 36px;
+      font-weight: 800;
+      letter-spacing: 8px;
+      color: #ffffff;
+      margin: 0;
+      padding: 4px 0;
+    }}
+    .info-list {{
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-top: 24px;
+    }}
+    .info-item {{
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.6;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }}
+    .info-item + .info-item {{
+      margin-top: 8px;
+    }}
+    .bullet {{
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: #a78bfa;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }}
+    .footer {{
+      padding: 20px 32px;
+      border-top: 1px solid rgba(148, 163, 184, 0.1);
+      text-align: center;
+      font-size: 11px;
+      color: #64748b;
+      background: #0d121c;
+    }}
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <div class="brand">DevProfile<span>.AI</span></div>
+      <div class="tagline">Developer Portfolio Analytics & Placement Intelligence</div>
+    </div>
+    <div class="content">
+      <h1>Password Reset Request</h1>
+      <p>
+        We received a request to reset the password for your DevProfile AI account (<strong>{recipient_email}</strong>).
+        Use the 6-digit verification code below to authorize your password change.
+      </p>
+
+      <div class="otp-container">
+        <div class="otp-label">Password Reset Code</div>
+        <div class="otp-code">{otp_code}</div>
+      </div>
+
+      <div class="info-list">
+        <div class="info-item">
+          <span class="bullet"></span>
+          <span>This code expires in <strong>10 minutes</strong> and is strictly single-use.</span>
+        </div>
+        <div class="info-item">
+          <span class="bullet"></span>
+          <span>Never share this code with anyone. DevProfile AI will never ask for this code.</span>
+        </div>
+        <div class="info-item">
+          <span class="bullet"></span>
+          <span>If you did not request this password reset, you can safely ignore this email. Your account remains secure.</span>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      This is an automated security notice dispatched to {recipient_email}.<br>
+      &copy; 2026 DevProfile AI. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>"""
+
+
+def build_password_reset_otp_email_text(otp_code: str, recipient_email: str) -> str:
+    """Plain-text fallback for password reset emails."""
+    return f"""DevProfile AI — Password Reset Request
+==================================================
+
+We received a request to reset the password for your DevProfile AI account: {recipient_email}
+
+Your 6-digit password reset code is:
+========================================
+             {otp_code}
+========================================
+
+This code will expire in 10 minutes and can only be used once.
+
+Security Notice:
+- Never share this code with anyone.
+- If you did NOT request a password reset, you can safely ignore this email.
+- Your existing password remains active and secure.
+
+--
+DevProfile AI Security Team
+"""
+
+
+async def send_password_reset_otp_email(
+    to_email: str,
+    otp_code: str,
+    api_key: Optional[str] = None,
+    from_email: Optional[str] = None,
+) -> dict:
+    """
+    Sends a password reset OTP email using the Resend HTTPS API.
+    Does NOT use SMTP. Never exposes API keys or logs plaintext OTP values.
+    """
+    effective_api_key = api_key or settings.RESEND_API_KEY
+    effective_from = from_email or settings.RESEND_FROM_EMAIL
+
+    if not effective_api_key or not effective_api_key.strip():
+        logger.error("RESEND_API_KEY is not configured in backend environment.")
+        raise EmailDeliveryError(
+            "Email service is not configured. Please set RESEND_API_KEY in your environment."
+        )
+
+    clean_recipient = to_email.lower().strip()
+    html_content = build_password_reset_otp_email_html(otp_code, clean_recipient)
+    text_content = build_password_reset_otp_email_text(otp_code, clean_recipient)
+
+    payload = {
+        "from": effective_from,
+        "to": [clean_recipient],
+        "subject": "Reset your DevProfile AI password",
+        "html": html_content,
+        "text": text_content,
+    }
+
+    headers = {
+        "Authorization": f"Bearer {effective_api_key.strip()}",
+        "Content-Type": "application/json",
+        "User-Agent": "DevProfile-AI-Backend/2.0",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(RESEND_API_URL, json=payload, headers=headers)
+
+            if resp.status_code not in (200, 201):
+                logger.error(
+                    f"Resend HTTPS API error on password reset OTP: HTTP {resp.status_code} - recipient={clean_recipient}"
+                )
+                raise EmailDeliveryError(
+                    f"Resend email delivery failed (HTTP {resp.status_code}). Please try again."
+                )
+
+            data = resp.json()
+            email_id = data.get("id", "sent")
+            logger.info(f"Password reset OTP email dispatched via Resend (id={email_id}) to {clean_recipient}.")
+            return {"success": True, "id": email_id}
+
+    except httpx.RequestError as exc:
+        logger.error(f"Network error communicating with Resend HTTPS API for password reset: {type(exc).__name__}")
+        raise EmailDeliveryError(
+            "Could not connect to email delivery service. Please check network connection and try again."
+        ) from exc

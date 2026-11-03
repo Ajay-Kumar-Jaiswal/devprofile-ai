@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from app.config import settings
-from app.db_models import User, EmailVerificationOTP, AccountDeletionOTP
+from app.db_models import User, EmailVerificationOTP, AccountDeletionOTP, PasswordResetOTP
 
 logger = logging.getLogger("devprofile_ai.otp_service")
 
@@ -34,6 +34,8 @@ class OTPRateLimitTracker:
         self._last_sent: dict[str, float] = {}
         # user_id -> last_sent_deletion_timestamp
         self._deletion_last_sent: dict[int, float] = {}
+        # email -> last_sent_password_reset_timestamp
+        self._reset_last_sent: dict[str, float] = {}
         # ip -> list of request timestamps within rolling window
         self._ip_requests: dict[str, list[float]] = defaultdict(list)
         # ip -> list of verify attempt timestamps
@@ -54,6 +56,22 @@ class OTPRateLimitTracker:
 
     def record_send(self, email: str):
         self._last_sent[email.lower().strip()] = time.time()
+
+    def check_reset_cooldown(self, email: str, cooldown_seconds: int = 60) -> int:
+        """
+        Returns 0 if password reset cooldown has elapsed, or seconds remaining if still on cooldown.
+        """
+        clean_email = email.lower().strip()
+        last = self._reset_last_sent.get(clean_email)
+        if not last:
+            return 0
+        elapsed = time.time() - last
+        if elapsed < cooldown_seconds:
+            return int(cooldown_seconds - elapsed) + 1
+        return 0
+
+    def record_reset_send(self, email: str):
+        self._reset_last_sent[email.lower().strip()] = time.time()
 
     def check_deletion_cooldown(self, user_id: int, cooldown_seconds: int = 60) -> int:
         """
@@ -93,6 +111,7 @@ class OTPRateLimitTracker:
     def clear(self):
         self._last_sent.clear()
         self._deletion_last_sent.clear()
+        self._reset_last_sent.clear()
         self._ip_requests.clear()
         self._ip_verify_attempts.clear()
 
@@ -471,3 +490,249 @@ def verify_deletion_otp(
 
     logger.info(f"User #{user.id} ({user.email}) successfully verified account deletion OTP.")
     return otp_record
+
+
+def create_and_store_password_reset_otp(
+    db: Session,
+    user: User,
+    expiration_minutes: int = 10,
+    max_attempts: int = 5,
+) -> Tuple[str, PasswordResetOTP]:
+    """
+    Generates a new secure 6-digit OTP for password recovery, invalidates any existing
+    unconsumed reset OTPs for this user, and persists the salted hash.
+    Returns (plaintext_otp, otp_record).
+    """
+    clean_email = user.email.lower().strip()
+    now_utc = datetime.now(timezone.utc)
+
+    # Invalidate all prior unconsumed reset OTPs for this user
+    prior_otps = (
+        db.query(PasswordResetOTP)
+        .filter(
+            PasswordResetOTP.user_id == user.id,
+            PasswordResetOTP.is_consumed == False,  # noqa: E712
+        )
+        .all()
+    )
+    for p in prior_otps:
+        p.is_consumed = True
+        p.consumed_at = now_utc
+
+    plaintext_otp = generate_secure_otp(6)
+    salt = secrets.token_hex(16)
+    otp_hash = hash_otp(plaintext_otp, salt)
+    expires_at = now_utc + timedelta(minutes=expiration_minutes)
+
+    new_otp_record = PasswordResetOTP(
+        user_id=user.id,
+        email=clean_email,
+        otp_hash=otp_hash,
+        salt=salt,
+        attempts=0,
+        max_attempts=max_attempts,
+        expires_at=expires_at,
+        is_consumed=False,
+        created_at=now_utc,
+    )
+    db.add(new_otp_record)
+    db.commit()
+    db.refresh(new_otp_record)
+
+    # Record sending timestamp for 60s cooldown
+    otp_rate_limiter.record_reset_send(clean_email)
+    logger.info(f"Generated password reset OTP for user #{user.id}. Valid for {expiration_minutes} mins.")
+    return plaintext_otp, new_otp_record
+
+
+def verify_password_reset_otp(
+    db: Session,
+    email: str,
+    entered_otp: str,
+    client_ip: str = "unknown",
+) -> Tuple[str, PasswordResetOTP]:
+    """
+    Validates the password reset OTP using constant-time comparison.
+    Enforces expiration, single-use, and maximum failed attempt thresholds.
+    Upon successful validation, marks the OTP consumed and issues a cryptographically
+    secure, single-use reset_token valid for 10 minutes.
+    Returns (reset_token, otp_record).
+    """
+    if not entered_otp or not str(entered_otp).strip():
+        raise OTPVerificationError(
+            message="Please provide the 6-digit verification code.",
+            status_code=400,
+        )
+
+    clean_otp = str(entered_otp).strip().replace(" ", "")
+    if len(clean_otp) != 6 or not clean_otp.isdigit():
+        raise OTPVerificationError(
+            message="Verification code must be exactly 6 numeric digits.",
+            status_code=400,
+        )
+
+    if not otp_rate_limiter.check_ip_verify_rate_limit(client_ip):
+        raise OTPVerificationError(
+            message="Too many verification attempts from this network. Please wait a few minutes before trying again.",
+            status_code=429,
+        )
+    otp_rate_limiter.record_ip_verify(client_ip)
+
+    clean_email = email.lower().strip()
+    user = db.query(User).filter(User.email == clean_email).first()
+    if not user:
+        raise OTPVerificationError(
+            message="Invalid verification request or email not found.",
+            status_code=400,
+        )
+
+    now_utc = datetime.now(timezone.utc)
+
+    # Retrieve most recent unconsumed reset OTP for this user
+    otp_record = (
+        db.query(PasswordResetOTP)
+        .filter(
+            PasswordResetOTP.user_id == user.id,
+            PasswordResetOTP.is_consumed == False,  # noqa: E712
+        )
+        .order_by(desc(PasswordResetOTP.created_at))
+        .first()
+    )
+
+    if not otp_record:
+        raise OTPVerificationError(
+            message="No active password reset verification code found. Please request a new code.",
+            status_code=400,
+        )
+
+    # Check attempt threshold
+    if otp_record.attempts >= otp_record.max_attempts:
+        otp_record.is_consumed = True
+        otp_record.consumed_at = now_utc
+        db.commit()
+        raise OTPVerificationError(
+            message="Maximum verification attempts exceeded. For your security, this code has been invalidated. Please request a new code.",
+            status_code=400,
+            remaining_attempts=0,
+        )
+
+    # Check expiration
+    record_expires = otp_record.expires_at
+    if record_expires.tzinfo is None:
+        record_expires = record_expires.replace(tzinfo=timezone.utc)
+
+    if now_utc > record_expires:
+        otp_record.is_consumed = True
+        otp_record.consumed_at = now_utc
+        db.commit()
+        raise OTPVerificationError(
+            message="Password reset verification code has expired. Please request a new code.",
+            status_code=400,
+        )
+
+    # Validate OTP hash with constant-time equality
+    expected_hash = hash_otp(clean_otp, otp_record.salt)
+    is_valid = hmac.compare_digest(otp_record.otp_hash, expected_hash)
+
+    if not is_valid:
+        otp_record.attempts += 1
+        remaining = otp_record.max_attempts - otp_record.attempts
+
+        if remaining <= 0:
+            otp_record.is_consumed = True
+            otp_record.consumed_at = now_utc
+            db.commit()
+            raise OTPVerificationError(
+                message="Incorrect verification code. Maximum attempts exceeded. Please request a new code.",
+                status_code=400,
+                remaining_attempts=0,
+            )
+
+        db.commit()
+        raise OTPVerificationError(
+            message=f"Incorrect verification code. You have {remaining} {'attempt' if remaining == 1 else 'attempts'} remaining.",
+            status_code=400,
+            remaining_attempts=remaining,
+        )
+
+    # Successful verification: mark single-use OTP consumed and generate reset token
+    otp_record.is_consumed = True
+    otp_record.consumed_at = now_utc
+
+    # Generate high-entropy raw reset token, but store ONLY its SHA-256 hash in the database
+    raw_reset_token = secrets.token_urlsafe(48)
+    token_hash = hashlib.sha256(raw_reset_token.encode("utf-8")).hexdigest()
+
+    otp_record.reset_token = token_hash
+    otp_record.reset_token_expires_at = now_utc + timedelta(minutes=10)
+    db.commit()
+    db.refresh(otp_record)
+
+    logger.info(f"User #{user.id} ({user.email}) successfully verified password reset OTP. Issued hashed reset token.")
+    return raw_reset_token, otp_record
+
+
+def verify_and_consume_reset_token(db: Session, reset_token: str) -> User:
+    """
+    Validates a single-use password reset token and marks it consumed so it cannot be replayed.
+    Returns the associated User.
+    """
+    if not reset_token or not str(reset_token).strip():
+        raise OTPVerificationError(
+            message="Invalid or missing password reset authorization token.",
+            status_code=400,
+        )
+
+    clean_token = str(reset_token).strip()
+    token_hash = hashlib.sha256(clean_token.encode("utf-8")).hexdigest()
+    now_utc = datetime.now(timezone.utc)
+
+    otp_record = (
+        db.query(PasswordResetOTP)
+        .filter(
+            PasswordResetOTP.reset_token == token_hash,
+            PasswordResetOTP.is_consumed == True,  # noqa: E712 - must have completed OTP verification
+        )
+        .first()
+    )
+
+    if not otp_record:
+        raise OTPVerificationError(
+            message="Invalid or expired password reset authorization. Please restart the password reset process.",
+            status_code=400,
+        )
+
+    token_expires = otp_record.reset_token_expires_at
+    if not token_expires:
+        raise OTPVerificationError(
+            message="Password reset authorization has expired. Please restart the password reset process.",
+            status_code=400,
+        )
+
+    if token_expires.tzinfo is None:
+        token_expires = token_expires.replace(tzinfo=timezone.utc)
+
+    if now_utc > token_expires:
+        # Invalidate expired token
+        otp_record.reset_token = None
+        otp_record.reset_token_expires_at = None
+        db.commit()
+        raise OTPVerificationError(
+            message="Password reset authorization has expired. Please restart the password reset process.",
+            status_code=400,
+        )
+
+    user = db.query(User).filter(User.id == otp_record.user_id).first()
+    if not user or not user.is_active:
+        raise OTPVerificationError(
+            message="User account not found or deactivated.",
+            status_code=404,
+        )
+
+    # Single-use: Consume and destroy reset token to prevent replay
+    otp_record.reset_token = None
+    otp_record.reset_token_expires_at = None
+    db.commit()
+
+    logger.info(f"Consumed password reset token for User #{user.id} ({user.email}).")
+    return user

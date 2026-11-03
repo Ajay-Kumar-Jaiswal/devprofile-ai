@@ -74,6 +74,11 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    password_reset_otps = relationship(
+        "PasswordResetOTP",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class ConnectedGitHubAccount(Base):
@@ -239,6 +244,32 @@ class AccountDeletionOTP(Base):
 
     __table_args__ = (
         Index("idx_deletion_otp_user_active", "user_id", "is_consumed", "expires_at"),
+    )
+
+
+class PasswordResetOTP(Base):
+    """Secure, single-use hashed OTP codes and reset tokens for password recovery."""
+    __tablename__ = "password_reset_otps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    email = Column(String(255), nullable=False, index=True)
+    otp_hash = Column(String(255), nullable=False)
+    salt = Column(String(64), nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+    max_attempts = Column(Integer, default=5, nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    is_consumed = Column(Boolean, default=False, nullable=False, index=True)
+    reset_token = Column(String(128), nullable=True, index=True)
+    reset_token_expires_at = Column(DateTime, nullable=True, index=True)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    consumed_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", back_populates="password_reset_otps")
+
+    __table_args__ = (
+        Index("idx_pwd_reset_otp_email", "email", "is_consumed", "expires_at"),
+        Index("idx_pwd_reset_token", "reset_token", "is_consumed", "reset_token_expires_at"),
     )
 
 

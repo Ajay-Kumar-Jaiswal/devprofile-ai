@@ -1,3 +1,4 @@
+from datetime import timezone
 from typing import Optional
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -62,6 +63,22 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account not found, deactivated, or email not verified.",
         )
+
+    # Invalidate session tokens issued prior to a password reset or security credential change
+    token_iat = payload.get("iat")
+    if token_iat and user.updated_at:
+        user_updated_epoch = int(
+            user.updated_at.replace(tzinfo=timezone.utc).timestamp()
+            if user.updated_at.tzinfo is None
+            else user.updated_at.timestamp()
+        )
+        # Allow 5s tolerance for clock skew
+        if token_iat < (user_updated_epoch - 5):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session has been revoked due to a password or security update. Please sign in again.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
     # Enforce personal instance allowlist if configured
     if settings.allowed_github_accounts_list:

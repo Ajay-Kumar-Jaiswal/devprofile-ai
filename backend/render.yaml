@@ -6,7 +6,7 @@ services:
     plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: GROQ_API_KEY
         sync: false
@@ -18,3 +18,24 @@ services:
         sync: false
       - key: ENVIRONMENT
         value: production
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: ADMIN_API_KEY
+        generateValue: true
+
+  - type: cron
+    name: devprofile-ai-db-cleanup
+    env: python
+    region: oregon
+    plan: free
+    schedule: "0 3 * * *"  # Daily maintenance sweep at 03:00 UTC
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/cleanup_db.py --retention-days 1 --unverified-days 7
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_API_KEY
+        sync: false

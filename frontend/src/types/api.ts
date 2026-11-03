@@ -263,6 +263,53 @@ export interface ConfirmDeleteAccountResponse {
   message: string;
 }
 
+export interface ForgotPasswordResponse {
+  success: boolean;
+  message: string;
+  cooldown_seconds?: number;
+  documentation?: string | null;
+}
+
+export interface VerifyResetOtpResponse {
+  success: boolean;
+  reset_token: string;
+  message: string;
+}
+
+export interface ResetPasswordResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface StorageStatsReport {
+  status: string;
+  engine: string;
+  timestamp: string;
+  total_database_bytes: number;
+  total_database_size_formatted: string;
+  table_count: number;
+  tables: Array<{
+    table_name: string;
+    total_bytes: number;
+    total_size_formatted: string;
+    estimated_rows: number;
+  }>;
+  largest_tables: Array<{
+    table_name: string;
+    total_bytes: number;
+    total_size_formatted: string;
+    estimated_rows: number;
+  }>;
+  cleanup_eligibility: {
+    expired_email_verification_otps: number;
+    expired_password_reset_otps: number;
+    expired_account_deletion_otps: number;
+    expired_oauth_states: number;
+    total_expired_temporary_records: number;
+    abandoned_unverified_accounts: number;
+  };
+}
+
 export interface AuthResponse {
   user: UserOut;
   token: string;

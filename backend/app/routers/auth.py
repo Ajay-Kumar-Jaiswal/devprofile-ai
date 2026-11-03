@@ -27,6 +27,11 @@ from app.saas_models import (
     GitHubLinkCallbackRequest,
     ForgotPasswordRequest,
     ForgotPasswordResponse,
+    VerifyResetOtpRequest,
+    VerifyResetOtpResponse,
+    ResetPasswordWithTokenRequest,
+    ResetPasswordResponse,
+    ResendResetOtpRequest,
     PasswordChangeRequest,
     SetupCredentialsRequest,
     DefaultProfileRequest,
@@ -46,6 +51,7 @@ from app.services.auth_service import (
 from app.services.email_service import (
     send_otp_email,
     send_account_deletion_otp_email,
+    send_password_reset_otp_email,
     EmailDeliveryError,
 )
 from app.services.otp_service import (
@@ -53,6 +59,9 @@ from app.services.otp_service import (
     verify_otp_and_activate_user,
     create_and_store_deletion_otp,
     verify_deletion_otp,
+    create_and_store_password_reset_otp,
+    verify_password_reset_otp,
+    verify_and_consume_reset_token,
     otp_rate_limiter,
     OTPVerificationError,
 )
@@ -391,19 +400,202 @@ async def update_default_profile(
 @router.post(
     "/forgot-password",
     response_model=ForgotPasswordResponse,
-    summary="Request a password reset link (documents email delivery prerequisites)",
+    summary="Request a password reset verification code dispatched via Resend",
 )
-async def forgot_password(body: ForgotPasswordRequest):
+async def forgot_password(
+    body: ForgotPasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
     """
-    Handles password reset requests. In environments without an integrated transactional
-    SMTP/SES email service, returns explicit documentation on prerequisites.
+    Initiates password recovery by dispatching a secure 6-digit OTP to the registered email.
+    Employs generic responses to prevent email enumeration attacks.
     """
-    return ForgotPasswordResponse(
+    client_ip = request.client.host if request.client else "unknown"
+    if not otp_rate_limiter.check_ip_generate_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many password reset requests from this network. Please wait a few minutes before trying again.",
+        )
+
+    clean_email = body.email.lower().strip()
+    cooldown = otp_rate_limiter.check_reset_cooldown(clean_email, settings.OTP_RESEND_COOLDOWN_SECONDS)
+    if cooldown > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Please wait {cooldown} seconds before requesting a new password reset code.",
+        )
+
+    user = db.query(User).filter(User.email == clean_email).first()
+
+    # Generic response returned regardless of account existence
+    generic_response = ForgotPasswordResponse(
         success=True,
-        message=f"If an account exists for {body.email}, password recovery instructions would be dispatched.",
-        requires_email_service=True,
-        documentation="Password reset requires configuring an SMTP mail delivery provider (e.g. SendGrid, Amazon SES, or Mailgun). In local testing, users can update passwords via the Account Settings panel while logged in.",
+        message="If an account is associated with this email, a 6-digit password reset code has been dispatched.",
+        cooldown_seconds=settings.OTP_RESEND_COOLDOWN_SECONDS,
+        requires_email_service=False,
     )
+
+    if not user or not user.is_active:
+        return generic_response
+
+    otp_rate_limiter.record_ip_generate(client_ip)
+    plaintext_otp, _ = create_and_store_password_reset_otp(
+        db,
+        user,
+        expiration_minutes=settings.OTP_EXPIRATION_MINUTES,
+        max_attempts=settings.OTP_MAX_ATTEMPTS,
+    )
+
+    try:
+        await send_password_reset_otp_email(clean_email, plaintext_otp)
+    except EmailDeliveryError as exc:
+        logger.error(f"Failed to dispatch password reset email: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Could not dispatch password reset email. {str(exc)}",
+        )
+
+    return generic_response
+
+
+@router.post(
+    "/verify-reset-otp",
+    response_model=VerifyResetOtpResponse,
+    summary="Verify the 6-digit password recovery code and receive a single-use reset authorization token",
+)
+async def verify_reset_otp(
+    body: VerifyResetOtpRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    Validates a submitted 6-digit password reset OTP.
+    Upon successful validation, issues a short-lived single-use authorization token
+    required to change the account password.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        reset_token, _ = verify_password_reset_otp(
+            db=db,
+            email=body.email,
+            entered_otp=body.otp,
+            client_ip=client_ip,
+        )
+    except OTPVerificationError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.message,
+        )
+
+    return VerifyResetOtpResponse(
+        success=True,
+        reset_token=reset_token,
+        message="Verification code confirmed. You can now set your new password.",
+    )
+
+
+@router.post(
+    "/reset-password",
+    response_model=ResetPasswordResponse,
+    summary="Change password using a verified single-use reset authorization token",
+)
+async def reset_password(
+    body: ResetPasswordWithTokenRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """
+    Applies the new password to the user account authorized by the single-use reset token.
+    Consumes the token immediately to prevent replay attacks and clears active session cookies.
+    """
+    if len(body.new_password.strip()) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 8 characters in length.",
+        )
+
+    try:
+        user = verify_and_consume_reset_token(db, body.reset_token)
+    except OTPVerificationError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.message,
+        )
+
+    # Hash new password using Argon2
+    user.hashed_password = hash_password(body.new_password)
+    user.updated_at = datetime.now(timezone.utc)
+    db.commit()
+
+    # Revoke any active session cookies to enforce re-login
+    clear_auth_cookie(response)
+
+    logger.info(f"Password successfully reset for User #{user.id} ({user.email}).")
+    return ResetPasswordResponse(
+        success=True,
+        message="Your password has been successfully reset. Please sign in with your new password.",
+    )
+
+
+@router.post(
+    "/resend-reset-otp",
+    response_model=ForgotPasswordResponse,
+    summary="Resend a fresh 6-digit password recovery code to the registered email",
+)
+async def resend_reset_otp(
+    body: ResendResetOtpRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    Generates and dispatches a fresh 6-digit password reset code adhering to the 60s cooldown.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    if not otp_rate_limiter.check_ip_generate_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests from this network. Please wait a few minutes before trying again.",
+        )
+
+    clean_email = body.email.lower().strip()
+    cooldown = otp_rate_limiter.check_reset_cooldown(clean_email, settings.OTP_RESEND_COOLDOWN_SECONDS)
+    if cooldown > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Please wait {cooldown} seconds before requesting a new verification code.",
+        )
+
+    user = db.query(User).filter(User.email == clean_email).first()
+
+    generic_response = ForgotPasswordResponse(
+        success=True,
+        message="If an account is associated with this email, a fresh 6-digit password reset code has been dispatched.",
+        cooldown_seconds=settings.OTP_RESEND_COOLDOWN_SECONDS,
+        requires_email_service=False,
+    )
+
+    if not user or not user.is_active:
+        return generic_response
+
+    otp_rate_limiter.record_ip_generate(client_ip)
+    plaintext_otp, _ = create_and_store_password_reset_otp(
+        db,
+        user,
+        expiration_minutes=settings.OTP_EXPIRATION_MINUTES,
+        max_attempts=settings.OTP_MAX_ATTEMPTS,
+    )
+
+    try:
+        await send_password_reset_otp_email(clean_email, plaintext_otp)
+    except EmailDeliveryError as exc:
+        logger.error(f"Failed to resend password reset email: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Could not dispatch password reset email. {str(exc)}",
+        )
+
+    return generic_response
 
 
 @router.post(

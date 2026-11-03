@@ -71,10 +71,16 @@ def mock_resend_email(monkeypatch):
         sent_emails.append({"to": to_email, "otp": otp_code, "type": "deletion"})
         return {"success": True, "id": f"mock-{len(sent_emails)}"}
 
+    async def fake_send_password_reset_otp_email(to_email: str, otp_code: str, api_key=None, from_email=None):
+        sent_emails.append({"to": to_email, "otp": otp_code, "type": "password_reset"})
+        return {"success": True, "id": f"mock-{len(sent_emails)}"}
+
     monkeypatch.setattr("app.routers.auth.send_otp_email", fake_send_otp_email)
     monkeypatch.setattr("app.services.email_service.send_otp_email", fake_send_otp_email)
     monkeypatch.setattr("app.routers.auth.send_account_deletion_otp_email", fake_send_deletion_otp_email)
     monkeypatch.setattr("app.services.email_service.send_account_deletion_otp_email", fake_send_deletion_otp_email)
+    monkeypatch.setattr("app.routers.auth.send_password_reset_otp_email", fake_send_password_reset_otp_email)
+    monkeypatch.setattr("app.services.email_service.send_password_reset_otp_email", fake_send_password_reset_otp_email)
     return sent_emails
 
 

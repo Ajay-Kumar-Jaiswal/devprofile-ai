@@ -1,9 +1,9 @@
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from app.database import SessionLocal
 from app.db_models import User
 from app.services.auth_service import hash_password
+from tests.conftest import TestSession
 
 
 @pytest.mark.asyncio
@@ -22,7 +22,7 @@ async def test_registration_requires_terms_acceptance():
         assert "Terms & Conditions and Privacy Policy" in resp.json()["detail"]
 
         # Verify no user created
-        db = SessionLocal()
+        db = TestSession()
         user_none = db.query(User).filter(User.email == "terms_reject@example.com").first()
         db.close()
         assert user_none is None
@@ -42,7 +42,7 @@ async def test_registration_requires_terms_acceptance():
         assert data["user"]["terms_accepted_version"] == "2026-11-01"
 
         # Verify database record
-        db = SessionLocal()
+        db = TestSession()
         user = db.query(User).filter(User.email == "terms_accept@example.com").first()
         assert user is not None
         assert user.terms_accepted is True
@@ -54,7 +54,7 @@ async def test_registration_requires_terms_acceptance():
 @pytest.mark.asyncio
 async def test_existing_user_login_not_blocked_by_terms():
     # Pre-create an existing user without terms_accepted
-    db = SessionLocal()
+    db = TestSession()
     existing_user = User(
         email="legacy_user@example.com",
         hashed_password=hash_password("Password123!"),

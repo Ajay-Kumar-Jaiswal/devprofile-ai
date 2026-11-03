@@ -9,7 +9,7 @@ from app.config import settings
 from app.database import init_db
 
 from app.models import HealthResponse
-from app.routers import analyze, auth, history, recommendations, internships
+from app.routers import analyze, auth, history, recommendations, internships, admin
 from app.services.github_service import github_service
 
 # Configure logging
@@ -27,7 +27,8 @@ async def lifespan(app: FastAPI):
         init_db()
         logger.info("Database initialized successfully.")
     except Exception as e:
-        logger.error(f"Database initialization error: {e}")
+        logger.critical(f"Fatal database initialization error: {e}", exc_info=True)
+        raise e
     yield
 
 
@@ -59,6 +60,7 @@ app.include_router(analyze.router)
 app.include_router(history.router)
 app.include_router(recommendations.router)
 app.include_router(internships.router)
+app.include_router(admin.router)
 
 
 @app.get(

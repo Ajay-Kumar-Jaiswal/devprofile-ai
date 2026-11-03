@@ -113,10 +113,36 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class ForgotPasswordResponse(BaseModel):
-    success: bool
+    success: bool = True
     message: str
-    requires_email_service: bool = True
-    documentation: str
+    cooldown_seconds: int = 60
+    requires_email_service: bool = False
+    documentation: Optional[str] = None
+
+
+class VerifyResetOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str = Field(..., min_length=6, max_length=6, description="6-digit numeric password recovery OTP")
+
+
+class VerifyResetOtpResponse(BaseModel):
+    success: bool = True
+    reset_token: str
+    message: str
+
+
+class ResetPasswordWithTokenRequest(BaseModel):
+    reset_token: str = Field(..., min_length=10, description="Single-use password reset authorization token")
+    new_password: str = Field(..., min_length=8, description="New password meeting complexity criteria")
+
+
+class ResetPasswordResponse(BaseModel):
+    success: bool = True
+    message: str
+
+
+class ResendResetOtpRequest(BaseModel):
+    email: EmailStr
 
 
 class PasswordChangeRequest(BaseModel):
