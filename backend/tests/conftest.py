@@ -56,22 +56,22 @@ def reset_settings_allowlist():
 
 
 @pytest.fixture(autouse=True)
-def mock_resend_email(monkeypatch):
+def mock_brevo_email(monkeypatch):
     """
-    Mock Resend API calls across all automated tests.
+    Mock Brevo email API calls across all automated tests.
     Never sends real emails during tests. Captures sent emails for test verification.
     """
     sent_emails = []
 
-    async def fake_send_otp_email(to_email: str, otp_code: str, api_key=None, from_email=None):
+    async def fake_send_otp_email(to_email: str, otp_code: str, api_key=None, from_email=None, from_name=None):
         sent_emails.append({"to": to_email, "otp": otp_code, "type": "verification"})
         return {"success": True, "id": f"mock-{len(sent_emails)}"}
 
-    async def fake_send_deletion_otp_email(to_email: str, otp_code: str, api_key=None, from_email=None):
+    async def fake_send_deletion_otp_email(to_email: str, otp_code: str, api_key=None, from_email=None, from_name=None):
         sent_emails.append({"to": to_email, "otp": otp_code, "type": "deletion"})
         return {"success": True, "id": f"mock-{len(sent_emails)}"}
 
-    async def fake_send_password_reset_otp_email(to_email: str, otp_code: str, api_key=None, from_email=None):
+    async def fake_send_password_reset_otp_email(to_email: str, otp_code: str, api_key=None, from_email=None, from_name=None):
         sent_emails.append({"to": to_email, "otp": otp_code, "type": "password_reset"})
         return {"success": True, "id": f"mock-{len(sent_emails)}"}
 
@@ -82,6 +82,12 @@ def mock_resend_email(monkeypatch):
     monkeypatch.setattr("app.routers.auth.send_password_reset_otp_email", fake_send_password_reset_otp_email)
     monkeypatch.setattr("app.services.email_service.send_password_reset_otp_email", fake_send_password_reset_otp_email)
     return sent_emails
+
+
+@pytest.fixture
+def mock_resend_email(mock_brevo_email):
+    """Backward compatibility alias for existing test suites."""
+    return mock_brevo_email
 
 
 @pytest.fixture(autouse=True)

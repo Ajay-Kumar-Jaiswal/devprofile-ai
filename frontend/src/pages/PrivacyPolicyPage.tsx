@@ -120,7 +120,7 @@ export const PrivacyPolicyPage: React.FC = () => {
               <li>Computing automated ATS readiness scores and evaluating repository quality benchmarks.</li>
               <li>Generating tailored skill improvement suggestions and campus placement roadmaps via high-speed Groq AI inference.</li>
               <li>Matching candidate strengths to live, verified internship positions from official employer boards (Greenhouse, Lever).</li>
-              <li>Validating identity during signup, authentication, password management, and permanent account deletion via Resend transactional emails.</li>
+              <li>Validating identity during signup, authentication, password management, and permanent account deletion via Brevo transactional emails.</li>
               <li>Enforcing IP and user rate limits to prevent brute-force attacks and abuse.</li>
             </ul>
           </section>
@@ -144,7 +144,7 @@ export const PrivacyPolicyPage: React.FC = () => {
               </div>
 
               <div className="p-3.5 rounded-xl bg-navy-950/60 border border-slate-800/80 space-y-1">
-                <h3 className="font-bold text-white text-xs">Resend (HTTPS API)</h3>
+                <h3 className="font-bold text-white text-xs">Brevo (HTTPS API)</h3>
                 <p className="text-slate-400 text-xs">Delivers verification and account security OTP emails over TLS-secured HTTPS without exposing SMTP credentials.</p>
               </div>
 
@@ -245,7 +245,7 @@ export const PrivacyPolicyPage: React.FC = () => {
               <span>International Data Transfers</span>
             </h2>
             <p>
-              Our hosting and cloud services (Render, Vercel, Resend, and Groq) maintain servers and network nodes primarily located in the United States and the European Union. By using DevProfile AI, you understand that your information will be processed and stored in these secure facilities in accordance with this Privacy Policy.
+              Our hosting and cloud services (Render, Vercel, Brevo, and Groq) maintain servers and network nodes primarily located in the United States and the European Union. By using DevProfile AI, you understand that your information will be processed and stored in these secure facilities in accordance with this Privacy Policy.
             </p>
           </section>
 

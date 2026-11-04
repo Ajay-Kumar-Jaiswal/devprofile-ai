@@ -107,7 +107,7 @@ def user_to_out(user: User) -> UserOut:
     "/register",
     response_model=RegisterResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Register a new user account with email and password (dispatches 6-digit verification code via Resend)",
+    summary="Register a new user account with email and password (dispatches 6-digit verification code via Brevo)",
 )
 async def register_user(
     body: UserRegisterRequest,
@@ -400,7 +400,7 @@ async def update_default_profile(
 @router.post(
     "/forgot-password",
     response_model=ForgotPasswordResponse,
-    summary="Request a password reset verification code dispatched via Resend",
+    summary="Request a password reset verification code dispatched via Brevo",
 )
 async def forgot_password(
     body: ForgotPasswordRequest,
@@ -726,7 +726,7 @@ async def request_account_deletion_otp(
 ):
     """
     Initiates the permanent account deletion workflow for an authenticated user.
-    Dispatches a single-use 6-digit deletion OTP to the user's registered email via Resend.
+    Dispatches a single-use 6-digit deletion OTP to the user's registered email via Brevo.
     Enforces rate limits and 60-second resend cooldowns.
     """
     if not current_user.email or not current_user.email.strip():

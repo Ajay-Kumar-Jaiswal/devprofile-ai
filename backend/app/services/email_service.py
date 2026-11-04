@@ -5,12 +5,148 @@ from app.config import settings
 
 logger = logging.getLogger("devprofile_ai.email_service")
 
-RESEND_API_URL = "https://api.resend.com/emails"
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 
 class EmailDeliveryError(Exception):
-    """Raised when email delivery via Resend HTTPS API fails."""
+    """Raised when email delivery via Brevo HTTPS API fails."""
     pass
+
+
+def _parse_sender(from_email_str: str, default_name: str = "DevProfile AI") -> tuple[str, str]:
+    """
+    Parses a sender string which may be 'Name <email@domain.com>' or 'email@domain.com'.
+    Returns (sender_email, sender_name).
+    """
+    from email.utils import parseaddr
+    clean_str = (from_email_str or "").strip()
+    name, addr = parseaddr(clean_str)
+    sender_email = addr.strip() if addr else clean_str
+    sender_name = name.strip() if name else default_name.strip()
+    return sender_email, sender_name
+
+
+async def send_brevo_transactional_email(
+    to_email: str,
+    subject: str,
+    html_content: str,
+    text_content: str,
+    api_key: Optional[str] = None,
+    from_email: Optional[str] = None,
+    from_name: Optional[str] = None,
+) -> dict:
+    """
+    Dispatches a transactional email using the official Brevo (formerly Sendinblue) HTTPS API:
+    POST https://api.brevo.com/v3/smtp/email
+
+    Authenticates via the `api-key` header. Never uses SMTP.
+    Safely sanitizes logs to ensure API keys, OTPs, and secrets are never exposed.
+    """
+    effective_api_key = api_key or settings.BREVO_API_KEY
+    effective_from = from_email or settings.BREVO_FROM_EMAIL
+    effective_name = from_name or settings.BREVO_FROM_NAME
+
+    if not effective_api_key or not effective_api_key.strip():
+        logger.error("BREVO_API_KEY is not configured in backend environment.")
+        raise EmailDeliveryError(
+            "Email service is not configured. Please set BREVO_API_KEY in your environment."
+        )
+
+    sender_email, sender_name = _parse_sender(effective_from, effective_name)
+    if not sender_email or not sender_email.strip():
+        logger.error("BREVO_FROM_EMAIL is not configured in backend environment.")
+        raise EmailDeliveryError(
+            "Sender email address is not configured. Please set BREVO_FROM_EMAIL in your environment."
+        )
+
+    clean_recipient = to_email.lower().strip()
+    if not clean_recipient or "@" not in clean_recipient:
+        raise EmailDeliveryError("Recipient email address is invalid.")
+
+    payload = {
+        "sender": {
+            "name": sender_name,
+            "email": sender_email,
+        },
+        "to": [
+            {
+                "email": clean_recipient,
+            }
+        ],
+        "subject": subject,
+        "htmlContent": html_content,
+        "textContent": text_content,
+    }
+
+    headers = {
+        "api-key": effective_api_key.strip(),
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "DevProfile-AI-Backend/2.0",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(BREVO_API_URL, json=payload, headers=headers)
+
+            if resp.status_code in (200, 201, 202):
+                data = resp.json() if resp.content else {}
+                message_id = data.get("messageId", "sent")
+                logger.info(
+                    f"Transactional email successfully dispatched via Brevo (messageId={message_id}) to {clean_recipient}."
+                )
+                return {"success": True, "id": message_id}
+
+            # Handle Brevo error response
+            err_code = "unknown"
+            err_msg = ""
+            try:
+                err_data = resp.json()
+                err_code = err_data.get("code", "unknown")
+                err_msg = err_data.get("message", "")
+            except Exception:
+                err_msg = resp.text[:200]
+
+            logger.error(
+                f"Brevo HTTPS API error: HTTP {resp.status_code} - code={err_code} - message={err_msg} - recipient={clean_recipient}"
+            )
+
+            if resp.status_code == 400:
+                raise EmailDeliveryError(
+                    f"Email delivery rejected: Invalid recipient or message parameters ({err_code})."
+                )
+            elif resp.status_code == 401:
+                raise EmailDeliveryError(
+                    "Email service authentication failed. Please verify BREVO_API_KEY configuration."
+                )
+            elif resp.status_code == 403:
+                raise EmailDeliveryError(
+                    f"Email delivery rejected: Sender '{sender_email}' is not verified in Brevo. "
+                    "Please verify your sender email in the Brevo dashboard under Senders & IPs."
+                )
+            elif resp.status_code == 429:
+                raise EmailDeliveryError(
+                    "Email delivery rate limit reached. Please wait a few moments before trying again."
+                )
+            elif resp.status_code >= 500:
+                raise EmailDeliveryError(
+                    f"Email service temporarily unavailable (HTTP {resp.status_code}). Please try again shortly."
+                )
+            else:
+                raise EmailDeliveryError(
+                    f"Brevo email delivery failed (HTTP {resp.status_code}). Please check recipient address or try again."
+                )
+
+    except httpx.TimeoutException as exc:
+        logger.error(f"Timeout connecting to Brevo HTTPS API for recipient={clean_recipient}")
+        raise EmailDeliveryError(
+            "Could not connect to email delivery service (request timed out). Please check network connection and try again."
+        ) from exc
+    except httpx.RequestError as exc:
+        logger.error(f"Network error communicating with Brevo HTTPS API: {type(exc).__name__}")
+        raise EmailDeliveryError(
+            "Could not connect to email delivery service. Please check network connection and try again."
+        ) from exc
 
 
 def build_otp_email_html(otp_code: str, recipient_email: str) -> str:
@@ -375,120 +511,51 @@ async def send_account_deletion_otp_email(
     otp_code: str,
     api_key: Optional[str] = None,
     from_email: Optional[str] = None,
+    from_name: Optional[str] = None,
 ) -> dict:
     """
-    Sends an account deletion OTP email using the Resend HTTPS API.
+    Sends an account deletion OTP email using the Brevo HTTPS API.
     Does NOT use SMTP. Never exposes API keys or logs plaintext OTP values.
     """
-    effective_api_key = api_key or settings.RESEND_API_KEY
-    effective_from = from_email or settings.RESEND_FROM_EMAIL
-
-    if not effective_api_key or not effective_api_key.strip():
-        logger.error("RESEND_API_KEY is not configured in backend environment.")
-        raise EmailDeliveryError(
-            "Email service is not configured. Please set RESEND_API_KEY in your environment."
-        )
-
     clean_recipient = to_email.lower().strip()
     html_content = build_deletion_otp_email_html(otp_code, clean_recipient)
     text_content = build_deletion_otp_email_text(otp_code, clean_recipient)
 
-    payload = {
-        "from": effective_from,
-        "to": [clean_recipient],
-        "subject": "Action Required: Confirm DevProfile AI Account Deletion",
-        "html": html_content,
-        "text": text_content,
-    }
+    return await send_brevo_transactional_email(
+        to_email=clean_recipient,
+        subject="Action Required: Confirm DevProfile AI Account Deletion",
+        html_content=html_content,
+        text_content=text_content,
+        api_key=api_key,
+        from_email=from_email,
+        from_name=from_name,
+    )
 
-    headers = {
-        "Authorization": f"Bearer {effective_api_key.strip()}",
-        "Content-Type": "application/json",
-        "User-Agent": "DevProfile-AI-Backend/2.0",
-    }
 
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(RESEND_API_URL, json=payload, headers=headers)
-
-            if resp.status_code not in (200, 201):
-                logger.error(
-                    f"Resend HTTPS API error on deletion OTP: HTTP {resp.status_code} - recipient={clean_recipient}"
-                )
-                raise EmailDeliveryError(
-                    f"Resend email delivery failed (HTTP {resp.status_code}). Please try again."
-                )
-
-            data = resp.json()
-            email_id = data.get("id", "sent")
-            logger.info(f"Account deletion OTP email dispatched via Resend (id={email_id}) to {clean_recipient}.")
-            return {"success": True, "id": email_id}
-
-    except httpx.RequestError as exc:
-        logger.error(f"Network error communicating with Resend HTTPS API for deletion OTP: {type(exc).__name__}")
-        raise EmailDeliveryError(
-            "Could not connect to email delivery service. Please check network connection and try again."
-        ) from exc
 async def send_otp_email(
     to_email: str,
     otp_code: str,
     api_key: Optional[str] = None,
     from_email: Optional[str] = None,
+    from_name: Optional[str] = None,
 ) -> dict:
     """
-    Sends an OTP verification email using the Resend HTTPS API.
+    Sends an OTP verification email using the Brevo HTTPS API.
     Does NOT use SMTP. Never exposes API keys or logs plaintext OTP values.
     """
-    effective_api_key = api_key or settings.RESEND_API_KEY
-    effective_from = from_email or settings.RESEND_FROM_EMAIL
-
-    if not effective_api_key or not effective_api_key.strip():
-        logger.error("RESEND_API_KEY is not configured in backend environment.")
-        raise EmailDeliveryError(
-            "Email service is not configured. Please set RESEND_API_KEY in your environment."
-        )
-
     clean_recipient = to_email.lower().strip()
     html_content = build_otp_email_html(otp_code, clean_recipient)
     text_content = build_otp_email_text(otp_code, clean_recipient)
 
-    payload = {
-        "from": effective_from,
-        "to": [clean_recipient],
-        "subject": "Your DevProfile AI Verification Code",
-        "html": html_content,
-        "text": text_content,
-    }
-
-    headers = {
-        "Authorization": f"Bearer {effective_api_key.strip()}",
-        "Content-Type": "application/json",
-        "User-Agent": "DevProfile-AI-Backend/2.0",
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(RESEND_API_URL, json=payload, headers=headers)
-
-            if resp.status_code not in (200, 201):
-                err_body = resp.text
-                logger.error(
-                    f"Resend HTTPS API error: HTTP {resp.status_code} - recipient={clean_recipient}"
-                )
-                raise EmailDeliveryError(
-                    f"Resend email delivery failed (HTTP {resp.status_code}). Please check recipient address or try again."
-                )
-
-            data = resp.json()
-            email_id = data.get("id", "sent")
-            logger.info(f"Verification email dispatched via Resend (id={email_id}) to {clean_recipient}.")
-            return {"success": True, "id": email_id}
-
-    except httpx.RequestError as exc:
-        logger.error(f"Network error communicating with Resend HTTPS API: {type(exc).__name__}")
-        raise EmailDeliveryError(
-            "Could not connect to email delivery service. Please check network connection and try again."
-        ) from exc
+    return await send_brevo_transactional_email(
+        to_email=clean_recipient,
+        subject="Your DevProfile AI Verification Code",
+        html_content=html_content,
+        text_content=text_content,
+        api_key=api_key,
+        from_email=from_email,
+        from_name=from_name,
+    )
 
 
 def build_password_reset_otp_email_html(otp_code: str, recipient_email: str) -> str:
@@ -688,57 +755,22 @@ async def send_password_reset_otp_email(
     otp_code: str,
     api_key: Optional[str] = None,
     from_email: Optional[str] = None,
+    from_name: Optional[str] = None,
 ) -> dict:
     """
-    Sends a password reset OTP email using the Resend HTTPS API.
+    Sends a password reset OTP email using the Brevo HTTPS API.
     Does NOT use SMTP. Never exposes API keys or logs plaintext OTP values.
     """
-    effective_api_key = api_key or settings.RESEND_API_KEY
-    effective_from = from_email or settings.RESEND_FROM_EMAIL
-
-    if not effective_api_key or not effective_api_key.strip():
-        logger.error("RESEND_API_KEY is not configured in backend environment.")
-        raise EmailDeliveryError(
-            "Email service is not configured. Please set RESEND_API_KEY in your environment."
-        )
-
     clean_recipient = to_email.lower().strip()
     html_content = build_password_reset_otp_email_html(otp_code, clean_recipient)
     text_content = build_password_reset_otp_email_text(otp_code, clean_recipient)
 
-    payload = {
-        "from": effective_from,
-        "to": [clean_recipient],
-        "subject": "Reset your DevProfile AI password",
-        "html": html_content,
-        "text": text_content,
-    }
-
-    headers = {
-        "Authorization": f"Bearer {effective_api_key.strip()}",
-        "Content-Type": "application/json",
-        "User-Agent": "DevProfile-AI-Backend/2.0",
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(RESEND_API_URL, json=payload, headers=headers)
-
-            if resp.status_code not in (200, 201):
-                logger.error(
-                    f"Resend HTTPS API error on password reset OTP: HTTP {resp.status_code} - recipient={clean_recipient}"
-                )
-                raise EmailDeliveryError(
-                    f"Resend email delivery failed (HTTP {resp.status_code}). Please try again."
-                )
-
-            data = resp.json()
-            email_id = data.get("id", "sent")
-            logger.info(f"Password reset OTP email dispatched via Resend (id={email_id}) to {clean_recipient}.")
-            return {"success": True, "id": email_id}
-
-    except httpx.RequestError as exc:
-        logger.error(f"Network error communicating with Resend HTTPS API for password reset: {type(exc).__name__}")
-        raise EmailDeliveryError(
-            "Could not connect to email delivery service. Please check network connection and try again."
-        ) from exc
+    return await send_brevo_transactional_email(
+        to_email=clean_recipient,
+        subject="Reset your DevProfile AI password",
+        html_content=html_content,
+        text_content=text_content,
+        api_key=api_key,
+        from_email=from_email,
+        from_name=from_name,
+    )

@@ -313,7 +313,7 @@ export const ForgotPasswordPage: React.FC = () => {
             </h1>
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm mx-auto">
               {step === 'email' &&
-                'Enter your registered email address and we will dispatch a secure 6-digit recovery code via Resend.'}
+                'Enter your registered email address and we will dispatch a secure 6-digit recovery code to your inbox.'}
               {step === 'otp' && (
                 <>
                   We sent a 6-digit code to <strong className="text-slate-200">{email}</strong>.

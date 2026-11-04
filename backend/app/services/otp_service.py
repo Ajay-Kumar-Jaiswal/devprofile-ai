@@ -27,7 +27,7 @@ class OTPVerificationError(Exception):
 class OTPRateLimitTracker:
     """
     In-memory rate limiting and cooldown enforcement for OTP requests.
-    Prevents brute-force abuse and Resend API spam.
+    Prevents brute-force abuse and Brevo API spam.
     """
     def __init__(self):
         # email -> last_sent_timestamp (epoch seconds)

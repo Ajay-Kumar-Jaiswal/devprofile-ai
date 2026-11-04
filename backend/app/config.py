@@ -54,9 +54,10 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "lax"
     ADMIN_API_KEY: Optional[str] = None  # Admin key for storage monitoring & cleanup trigger
 
-    # Resend Email Configuration (HTTPS API)
-    RESEND_API_KEY: Optional[str] = None
-    RESEND_FROM_EMAIL: str = "DevProfile AI <onboarding@resend.dev>"
+    # Brevo Transactional Email Configuration (Official HTTPS API)
+    BREVO_API_KEY: Optional[str] = None
+    BREVO_FROM_EMAIL: str = "noreply@devprofile.ai"
+    BREVO_FROM_NAME: str = "DevProfile AI"
     OTP_EXPIRATION_MINUTES: int = 10
     OTP_MAX_ATTEMPTS: int = 5
     OTP_RESEND_COOLDOWN_SECONDS: int = 60
