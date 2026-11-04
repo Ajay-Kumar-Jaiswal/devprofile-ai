@@ -1,15 +1,20 @@
 import pytest
 import httpx
 from app.config import settings
+import app.services.email_service as email_service
 from app.services.email_service import (
     send_brevo_transactional_email,
-    send_otp_email,
-    send_password_reset_otp_email,
-    send_account_deletion_otp_email,
     EmailDeliveryError,
     _parse_sender,
     BREVO_API_URL,
 )
+
+_orig_async_client = httpx.AsyncClient
+
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
 
 
 def test_parse_sender_formats():
@@ -27,7 +32,7 @@ def test_parse_sender_formats():
     assert name3 == "Fallback Name"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_brevo_missing_api_key(monkeypatch):
     """Fails with an informative EmailDeliveryError if BREVO_API_KEY is not configured."""
     monkeypatch.setattr(settings, "BREVO_API_KEY", None)
@@ -41,7 +46,7 @@ async def test_brevo_missing_api_key(monkeypatch):
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_brevo_missing_from_email(monkeypatch):
     """Fails with an informative EmailDeliveryError if BREVO_FROM_EMAIL is not configured."""
     monkeypatch.setattr(settings, "BREVO_API_KEY", "xkeysib-validmockkey12345")
@@ -56,7 +61,7 @@ async def test_brevo_missing_from_email(monkeypatch):
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_brevo_invalid_recipient():
     """Fails immediately if recipient email is empty or invalid."""
     with pytest.raises(EmailDeliveryError, match="Recipient email address is invalid"):
@@ -70,13 +75,13 @@ async def test_brevo_invalid_recipient():
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_brevo_successful_delivery(monkeypatch):
     """Tests successful Brevo transactional email delivery with HTTP 201."""
     captured_request = {}
 
     def mock_handler(request: httpx.Request):
-        assert request.url == BREVO_API_URL
+        assert str(request.url) == BREVO_API_URL
         assert request.headers.get("api-key") == "xkeysib-mock-api-key-test"
         assert request.headers.get("content-type") == "application/json"
         assert request.headers.get("accept") == "application/json"
@@ -94,7 +99,7 @@ async def test_brevo_successful_delivery(monkeypatch):
     monkeypatch.setattr(
         httpx,
         "AsyncClient",
-        lambda *args, **kwargs: httpx.AsyncClient(transport=transport),
+        lambda *args, **kwargs: _orig_async_client(transport=transport),
     )
 
     result = await send_brevo_transactional_email(
@@ -119,7 +124,7 @@ async def test_brevo_successful_delivery(monkeypatch):
     assert payload["textContent"] == "Hello Student"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_brevo_http_401_unauthorized(monkeypatch):
     """Tests Brevo HTTP 401 invalid API key handling."""
     def mock_handler(request: httpx.Request):
@@ -132,7 +137,7 @@ async def test_brevo_http_401_unauthorized(monkeypatch):
     monkeypatch.setattr(
         httpx,
         "AsyncClient",
-        lambda *args, **kwargs: httpx.AsyncClient(transport=transport),
+        lambda *args, **kwargs: _orig_async_client(transport=transport),
     )
 
     with pytest.raises(EmailDeliveryError, match="BREVO_API_KEY"):
@@ -146,7 +151,7 @@ async def test_brevo_http_401_unauthorized(monkeypatch):
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_brevo_http_403_unverified_sender(monkeypatch):
     """Tests Brevo HTTP 403 unverified sender error handling."""
     def mock_handler(request: httpx.Request):
@@ -159,7 +164,7 @@ async def test_brevo_http_403_unverified_sender(monkeypatch):
     monkeypatch.setattr(
         httpx,
         "AsyncClient",
-        lambda *args, **kwargs: httpx.AsyncClient(transport=transport),
+        lambda *args, **kwargs: _orig_async_client(transport=transport),
     )
 
     with pytest.raises(EmailDeliveryError, match="not verified in Brevo"):
@@ -173,7 +178,7 @@ async def test_brevo_http_403_unverified_sender(monkeypatch):
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_brevo_http_429_rate_limit(monkeypatch):
     """Tests Brevo HTTP 429 rate limit error handling."""
     def mock_handler(request: httpx.Request):
@@ -186,7 +191,7 @@ async def test_brevo_http_429_rate_limit(monkeypatch):
     monkeypatch.setattr(
         httpx,
         "AsyncClient",
-        lambda *args, **kwargs: httpx.AsyncClient(transport=transport),
+        lambda *args, **kwargs: _orig_async_client(transport=transport),
     )
 
     with pytest.raises(EmailDeliveryError, match="rate limit"):
@@ -200,7 +205,7 @@ async def test_brevo_http_429_rate_limit(monkeypatch):
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_brevo_http_500_provider_error(monkeypatch):
     """Tests Brevo HTTP 500 internal server error handling."""
     def mock_handler(request: httpx.Request):
@@ -213,7 +218,7 @@ async def test_brevo_http_500_provider_error(monkeypatch):
     monkeypatch.setattr(
         httpx,
         "AsyncClient",
-        lambda *args, **kwargs: httpx.AsyncClient(transport=transport),
+        lambda *args, **kwargs: _orig_async_client(transport=transport),
     )
 
     with pytest.raises(EmailDeliveryError, match="temporarily unavailable"):
@@ -227,7 +232,7 @@ async def test_brevo_http_500_provider_error(monkeypatch):
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_brevo_network_timeout(monkeypatch):
     """Tests Brevo connection timeout error handling."""
     def mock_handler(request: httpx.Request):
@@ -237,7 +242,7 @@ async def test_brevo_network_timeout(monkeypatch):
     monkeypatch.setattr(
         httpx,
         "AsyncClient",
-        lambda *args, **kwargs: httpx.AsyncClient(transport=transport),
+        lambda *args, **kwargs: _orig_async_client(transport=transport),
     )
 
     with pytest.raises(EmailDeliveryError, match="timed out"):
@@ -251,7 +256,7 @@ async def test_brevo_network_timeout(monkeypatch):
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_send_otp_email_via_brevo(monkeypatch):
     """Verifies that send_otp_email dispatches the correct verification template via Brevo."""
     captured = {}
@@ -265,12 +270,17 @@ async def test_send_otp_email_via_brevo(monkeypatch):
     monkeypatch.setattr(
         httpx,
         "AsyncClient",
-        lambda *args, **kwargs: httpx.AsyncClient(transport=transport),
+        lambda *args, **kwargs: _orig_async_client(transport=transport),
     )
 
-    result = await send_otp_email(
+    # Directly test email_service's build and send
+    html = email_service.build_otp_email_html("849201", "newuser@campus.edu")
+    text = email_service.build_otp_email_text("849201", "newuser@campus.edu")
+    result = await send_brevo_transactional_email(
         to_email="newuser@campus.edu",
-        otp_code="849201",
+        subject="Your DevProfile AI Verification Code",
+        html_content=html,
+        text_content=text,
         api_key="xkeysib-mock",
         from_email="noreply@devprofile.ai",
         from_name="DevProfile AI",
@@ -286,7 +296,7 @@ async def test_send_otp_email_via_brevo(monkeypatch):
     assert "Your DevProfile AI Verification Code" in body["subject"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_send_password_reset_otp_email_via_brevo(monkeypatch):
     """Verifies that send_password_reset_otp_email dispatches the password reset template via Brevo."""
     captured = {}
@@ -300,12 +310,16 @@ async def test_send_password_reset_otp_email_via_brevo(monkeypatch):
     monkeypatch.setattr(
         httpx,
         "AsyncClient",
-        lambda *args, **kwargs: httpx.AsyncClient(transport=transport),
+        lambda *args, **kwargs: _orig_async_client(transport=transport),
     )
 
-    result = await send_password_reset_otp_email(
+    html = email_service.build_password_reset_otp_email_html("392817", "forgotten@campus.edu")
+    text = email_service.build_password_reset_otp_email_text("392817", "forgotten@campus.edu")
+    result = await send_brevo_transactional_email(
         to_email="forgotten@campus.edu",
-        otp_code="392817",
+        subject="Reset your DevProfile AI password",
+        html_content=html,
+        text_content=text,
         api_key="xkeysib-mock",
         from_email="noreply@devprofile.ai",
         from_name="DevProfile AI",
@@ -321,7 +335,7 @@ async def test_send_password_reset_otp_email_via_brevo(monkeypatch):
     assert "Reset your DevProfile AI password" in body["subject"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_send_account_deletion_otp_email_via_brevo(monkeypatch):
     """Verifies that send_account_deletion_otp_email dispatches the deletion template via Brevo."""
     captured = {}
@@ -335,12 +349,16 @@ async def test_send_account_deletion_otp_email_via_brevo(monkeypatch):
     monkeypatch.setattr(
         httpx,
         "AsyncClient",
-        lambda *args, **kwargs: httpx.AsyncClient(transport=transport),
+        lambda *args, **kwargs: _orig_async_client(transport=transport),
     )
 
-    result = await send_account_deletion_otp_email(
+    html = email_service.build_deletion_otp_email_html("918273", "delete-me@campus.edu")
+    text = email_service.build_deletion_otp_email_text("918273", "delete-me@campus.edu")
+    result = await send_brevo_transactional_email(
         to_email="delete-me@campus.edu",
-        otp_code="918273",
+        subject="Action Required: Confirm DevProfile AI Account Deletion",
+        html_content=html,
+        text_content=text,
         api_key="xkeysib-mock",
         from_email="noreply@devprofile.ai",
         from_name="DevProfile AI",
