@@ -6,20 +6,28 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.db_models import User
-from app.services.auth_service import decode_access_token
+from app.services.auth_service import decode_access_token, get_user_security_fingerprint
 
 
 def get_token_from_request(request: Request) -> Optional[str]:
-    """Extracts JWT token from Authorization Bearer header or HttpOnly cookie."""
+    """
+    Extracts JWT token from Authorization Bearer header or HttpOnly cookie.
+    Robustly handles case-insensitivity ('Authorization' vs 'authorization',
+    'Bearer' vs 'bearer') and extraneous whitespace.
+    """
     # 1. Check Authorization Bearer header first (explicit header overrides ambient cookie)
-    auth_header = request.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        return auth_header[len("Bearer ") :].strip()
+    auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
+    if auth_header:
+        parts = auth_header.split(None, 1)
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            token = parts[1].strip()
+            if token:
+                return token
 
     # 2. Check HttpOnly cookie
-    token = request.cookies.get("devprofile_session")
-    if token:
-        return token
+    cookie_token = request.cookies.get("devprofile_session")
+    if cookie_token and cookie_token.strip():
+        return cookie_token.strip()
 
     return None
 
@@ -30,7 +38,8 @@ def get_current_user(
 ) -> User:
     """
     Enforces authentication for protected endpoints.
-    Raises HTTP 401 if unauthenticated or token is expired/invalid.
+    Raises HTTP 401 if unauthenticated, token is expired, or signature is invalid.
+    Always supplies WWW-Authenticate: Bearer on authentication rejections.
     """
     token = get_token_from_request(request)
     if not token:
@@ -55,6 +64,7 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid session token payload.",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     user = db.query(User).filter(User.id == user_id_int).first()
@@ -62,23 +72,34 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account not found, deactivated, or email not verified.",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     # Invalidate session tokens issued prior to a password reset or security credential change
-    token_iat = payload.get("iat")
-    if token_iat and user.updated_at:
-        user_updated_epoch = int(
-            user.updated_at.replace(tzinfo=timezone.utc).timestamp()
-            if user.updated_at.tzinfo is None
-            else user.updated_at.timestamp()
-        )
-        # Allow 5s tolerance for clock skew
-        if token_iat < (user_updated_epoch - 5):
+    token_pwd_fp = payload.get("pwd_fp")
+    if token_pwd_fp is not None:
+        current_fp = get_user_security_fingerprint(user)
+        if token_pwd_fp != current_fp:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Session has been revoked due to a password or security update. Please sign in again.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+    else:
+        # Fallback for tokens issued without pwd_fp claim: verify against updated_at
+        token_iat = payload.get("iat")
+        if token_iat and user.updated_at:
+            user_updated_epoch = int(
+                user.updated_at.replace(tzinfo=timezone.utc).timestamp()
+                if user.updated_at.tzinfo is None
+                else user.updated_at.timestamp()
+            )
+            if token_iat < (user_updated_epoch - 5):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Session has been revoked due to a password or security update. Please sign in again.",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
 
     # Enforce personal instance allowlist if configured
     if settings.allowed_github_accounts_list:
@@ -95,10 +116,11 @@ def get_current_user(
 def get_optional_current_user(
     request: Request,
     db: Session = Depends(get_db),
-):
+) -> Optional[User]:
     """
     Optional authentication dependency for endpoints accessible to both
-    authenticated users and guests/demos.
+    authenticated users and guests/demos. Returns User if a valid session is present,
+    or None if unauthenticated / expired.
     """
     token = get_token_from_request(request)
     if not token:
@@ -117,6 +139,22 @@ def get_optional_current_user(
     user = db.query(User).filter(User.id == user_id_int).first()
     if not user or not user.is_active or not getattr(user, "is_verified", True):
         return None
+
+    token_pwd_fp = payload.get("pwd_fp")
+    if token_pwd_fp is not None:
+        current_fp = get_user_security_fingerprint(user)
+        if token_pwd_fp != current_fp:
+            return None
+    else:
+        token_iat = payload.get("iat")
+        if token_iat and user.updated_at:
+            user_updated_epoch = int(
+                user.updated_at.replace(tzinfo=timezone.utc).timestamp()
+                if user.updated_at.tzinfo is None
+                else user.updated_at.timestamp()
+            )
+            if token_iat < (user_updated_epoch - 5):
+                return None
 
     # Enforce personal instance allowlist if configured
     if settings.allowed_github_accounts_list:

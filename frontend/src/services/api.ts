@@ -53,8 +53,39 @@ export class ApiError extends Error {
 }
 
 // Token storage helpers
+export function isTokenExpired(token: string): boolean {
+  if (!token || typeof token !== 'string') return true;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    const parsed = JSON.parse(jsonPayload);
+    if (!parsed || typeof parsed.exp !== 'number') return false;
+    // Buffer by 10s to gracefully handle slight clock skew
+    return Date.now() / 1000 >= parsed.exp - 10;
+  } catch {
+    return true;
+  }
+}
+
 export function getStoredToken(): string | null {
-  return localStorage.getItem('devprofile_token');
+  const token = localStorage.getItem('devprofile_token');
+  if (!token) return null;
+  if (isTokenExpired(token)) {
+    removeStoredToken();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('devprofile:auth-session-expired'));
+    }
+    return null;
+  }
+  return token;
 }
 
 export function setStoredToken(token: string): void {
@@ -158,9 +189,17 @@ async function handleResponseError(res: Response): Promise<never> {
     }
   }
 
-  // Clear stale token if unauthorized on a protected route
-  if (res.status === 401 && getStoredToken()) {
-    removeStoredToken();
+  // Clear stale token if unauthorized on a protected route and notify AuthContext
+  // Guard: Do NOT clear the user session if the 401 was caused by the server's upstream GITHUB_TOKEN
+  if (res.status === 401) {
+    const isUpstreamGitHubError = typeof detail === 'string' && detail.toLowerCase().includes('github personal access token');
+    if (!isUpstreamGitHubError) {
+      const hadToken = Boolean(localStorage.getItem('devprofile_token'));
+      removeStoredToken();
+      if (hadToken && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('devprofile:auth-session-expired'));
+      }
+    }
   }
 
   throw new ApiError(res.status, detail, {

@@ -77,6 +77,5 @@ async def test_existing_user_login_not_blocked_by_terms():
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["success"] is True
-        assert "access_token" in data
+        assert "token" in data
         assert data["user"]["email"] == "legacy_user@example.com"

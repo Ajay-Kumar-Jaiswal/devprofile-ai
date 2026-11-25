@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import secrets
 import time
@@ -34,6 +35,18 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return _hasher.verify(hashed_password, plain_password)
     except (VerifyMismatchError, InvalidHashError, Exception):
         return False
+
+
+def get_user_security_fingerprint(user) -> str:
+    """
+    Computes a deterministic 16-character SHA-256 fingerprint of the user's password hash.
+    Used in JWT claims ('pwd_fp') to automatically invalidate prior sessions when a password
+    is reset or changed, without being vulnerable to clock skew or non-security row updates.
+    """
+    hashed = getattr(user, "hashed_password", None)
+    if not hashed or not str(hashed).strip():
+        return "oauth_only"
+    return hashlib.sha256(str(hashed).encode("utf-8")).hexdigest()[:16]
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

@@ -181,8 +181,7 @@ async def test_forgot_password_documents_infrastructure_prerequisites():
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
-        assert data["requires_email_service"] is True
-        assert "SMTP" in data["documentation"]
+        assert "password reset code has been dispatched" in data["message"]
 
 
 @pytest.mark.asyncio

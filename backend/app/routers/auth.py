@@ -40,6 +40,7 @@ from app.services.auth_service import (
     hash_password,
     verify_password,
     create_access_token,
+    get_user_security_fingerprint,
     check_login_rate_limit,
     record_failed_login,
     reset_failed_login,
@@ -221,7 +222,9 @@ async def verify_otp(
             detail=exc.message,
         )
 
-    token = create_access_token({"sub": str(user.id), "email": user.email})
+    token = create_access_token(
+        {"sub": str(user.id), "email": user.email, "pwd_fp": get_user_security_fingerprint(user)}
+    )
     set_auth_cookie(response, token)
 
     return AuthResponse(
@@ -342,7 +345,9 @@ async def login_user(
     # Successful login: reset failed attempts
     reset_failed_login(rate_limit_key)
 
-    token = create_access_token({"sub": str(user.id), "email": user.email})
+    token = create_access_token(
+        {"sub": str(user.id), "email": user.email, "pwd_fp": get_user_security_fingerprint(user)}
+    )
     set_auth_cookie(response, token)
 
     return AuthResponse(
@@ -1063,7 +1068,9 @@ async def _process_github_oauth_code(
         db.commit()
         db.refresh(user)
 
-        token = create_access_token({"sub": str(user.id), "email": user.email})
+        token = create_access_token(
+        {"sub": str(user.id), "email": user.email, "pwd_fp": get_user_security_fingerprint(user)}
+    )
         set_auth_cookie(response, token)
         logger.info(f"User #{user.id} successfully linked GitHub identity @{gh_login}.")
         return user, token
@@ -1112,7 +1119,9 @@ async def _process_github_oauth_code(
     db.commit()
     db.refresh(user)
 
-    token = create_access_token({"sub": str(user.id), "email": user.email})
+    token = create_access_token(
+        {"sub": str(user.id), "email": user.email, "pwd_fp": get_user_security_fingerprint(user)}
+    )
     set_auth_cookie(response, token)
 
     return user, token

@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { UserOut, RegisterResponse, AuthResponse, ConfirmDeleteAccountResponse } from '../types/api';
-import { getMe, loginUser, registerUser, logoutUser, verifyOtp, confirmDeleteAccount } from '../services/api';
+import {
+  getMe,
+  loginUser,
+  registerUser,
+  logoutUser,
+  verifyOtp,
+  confirmDeleteAccount,
+  getStoredToken,
+  removeStoredToken,
+} from '../services/api';
 
 interface AuthContextType {
   user: UserOut | null;
@@ -70,22 +79,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
-    getMe()
-      .then((data) => {
-        if (mounted) setUser(data);
-      })
-      .catch(() => {
-        if (mounted) {
-          setUser(null);
-          clearSessionAnalysisCache();
-        }
-      })
-      .finally(() => {
-        if (mounted) setIsLoading(false);
-      });
+    const token = getStoredToken();
+    if (!token) {
+      setUser(null);
+      setIsLoading(false);
+    } else {
+      getMe()
+        .then((data) => {
+          if (mounted) setUser(data);
+        })
+        .catch(() => {
+          if (mounted) {
+            setUser(null);
+            clearSessionAnalysisCache();
+          }
+        })
+        .finally(() => {
+          if (mounted) setIsLoading(false);
+        });
+    }
+
+    const handleSessionExpired = () => {
+      if (mounted) {
+        setUser(null);
+        clearSessionAnalysisCache();
+      }
+    };
+
+    window.addEventListener('devprofile:auth-session-expired', handleSessionExpired);
 
     return () => {
       mounted = false;
+      window.removeEventListener('devprofile:auth-session-expired', handleSessionExpired);
     };
   }, []);
 
@@ -127,6 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return res;
     } finally {
       clearSessionAnalysisCache();
+      removeStoredToken();
       setUser(null);
     }
   };
@@ -136,6 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await logoutUser();
     } finally {
       clearSessionAnalysisCache();
+      removeStoredToken();
       setUser(null);
     }
   };
