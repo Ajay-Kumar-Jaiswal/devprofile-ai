@@ -157,8 +157,39 @@ async def test_lockout_expires_cleanly():
 
 
 @pytest.mark.asyncio
-async def test_invalid_token_401_response():
-    """Verify that 401 Unauthorized returns clear actionable guidance regarding GITHUB_TOKEN."""
+async def test_invalid_token_fallback_to_unauthenticated_request():
+    """Verify that an invalid or expired GITHUB_TOKEN automatically falls back to an unauthenticated public query."""
+    github_service.token = "ghp_invalid_or_expired_token_123"
+
+    # First call with token returns 401 Bad credentials; retry without token returns 200
+    mock_client = AsyncMock()
+    mock_client.get.side_effect = [
+        Response(
+            401,
+            json={"message": "Bad credentials"},
+            request=httpx.Request("GET", "https://api.github.com/users/fallbackuser"),
+        ),
+        Response(
+            200,
+            json={"login": "fallbackuser", "public_repos": 5, "followers": 10, "created_at": "2024-01-01T00:00:00Z"},
+            request=httpx.Request("GET", "https://api.github.com/users/fallbackuser"),
+        ),
+    ]
+
+    data = await github_service.fetch_profile(mock_client, "fallbackuser")
+    assert data["login"] == "fallbackuser"
+    assert github_service._token_is_invalid is True
+    # Two calls: initial with Authorization, second retry unauthenticated
+    assert mock_client.get.call_count == 2
+    # Verify second call omitted Authorization header
+    second_call_headers = mock_client.get.call_args_list[1].kwargs.get("headers", {})
+    assert "Authorization" not in second_call_headers
+
+
+@pytest.mark.asyncio
+async def test_persistent_bad_credentials_returns_502_bad_gateway():
+    """Verify that when GitHub API persistently rejects authentication, it returns 502 Bad Gateway rather than 401."""
+    github_service.token = "ghp_completely_broken_token"
     mock_client = AsyncMock()
     mock_client.get.return_value = Response(
         401,
@@ -169,8 +200,9 @@ async def test_invalid_token_401_response():
     with pytest.raises(HTTPException) as exc_info:
         await github_service.fetch_profile(mock_client, "badcredsuser")
 
-    assert exc_info.value.status_code == 401
-    assert "Invalid GitHub personal access token" in exc_info.value.detail
+    # Upstream GitHub error must return 502 Bad Gateway, NEVER 401 Unauthorized (which is reserved for user sessions)
+    assert exc_info.value.status_code == 502
+    assert "GitHub upstream API rejected authentication" in exc_info.value.detail
 
 
 @pytest.mark.asyncio

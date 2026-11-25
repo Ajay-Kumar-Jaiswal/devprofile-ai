@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import re
 import time
@@ -16,6 +17,8 @@ from app.models import (
     AggregateStats,
     RepoQualityChecklist,
 )
+
+logger = logging.getLogger("devprofile_ai.github")
 
 # GitHub username validation regex:
 # Alphanumeric characters or single hyphens, 1-39 chars, cannot begin or end with hyphen
@@ -42,6 +45,7 @@ class GitHubService:
         self.timeout = settings.REQUEST_TIMEOUT_SECONDS
         self._cache: Dict[str, CachedUserData] = {}
         self._rate_limit_reset_epoch: Optional[int] = None
+        self._token_is_invalid: bool = False
 
     @property
     def token(self) -> Optional[str]:
@@ -54,6 +58,7 @@ class GitHubService:
     @token.setter
     def token(self, value: Optional[str]) -> None:
         """Sets or unsets GITHUB_TOKEN in environment and settings."""
+        self._token_is_invalid = False
         if value is None:
             os.environ.pop("GITHUB_TOKEN", None)
             settings.GITHUB_TOKEN = None
@@ -76,22 +81,23 @@ class GitHubService:
         return self.rate_limit_reset_epoch is not None
 
 
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self, allow_auth: bool = True) -> Dict[str, str]:
         """Generates standard GitHub REST API request headers."""
         headers = {
             "Accept": "application/vnd.github.v3+json",
             "User-Agent": "DevProfile-AI-Analyzer",
             "X-GitHub-Api-Version": "2022-11-28",
         }
-        tok = self.token
-        if tok:
-            # Handle user tokens whether formatted with prefix or bare token
-            if tok.lower().startswith("bearer "):
-                headers["Authorization"] = tok
-            elif tok.lower().startswith("token "):
-                headers["Authorization"] = f"Bearer {tok[6:].strip()}"
-            else:
-                headers["Authorization"] = f"Bearer {tok}"
+        if allow_auth and not self._token_is_invalid:
+            tok = self.token
+            if tok:
+                # Handle user tokens whether formatted with prefix or bare token
+                if tok.lower().startswith("bearer "):
+                    headers["Authorization"] = tok
+                elif tok.lower().startswith("token "):
+                    headers["Authorization"] = f"Bearer {tok[6:].strip()}"
+                else:
+                    headers["Authorization"] = f"Bearer {tok}"
         return headers
 
     def get_cached_user(self, username: str) -> Optional[CachedUserData]:
@@ -244,7 +250,7 @@ class GitHubService:
         timeout: Optional[float] = None,
         retries: int = 1,
     ) -> httpx.Response:
-        """Executes an HTTP GET with transient network error retry and backoff."""
+        """Executes an HTTP GET with transient network error retry and unauthenticated public fallback on bad credentials."""
         timeout_val = timeout or self.timeout
         for attempt in range(retries + 1):
             try:
@@ -252,6 +258,24 @@ class GitHubService:
                 if resp.status_code in (502, 503, 504) and attempt < retries:
                     await asyncio.sleep(0.5)
                     continue
+
+                # If an authenticated request was rejected with 401 or 403 "bad credentials",
+                # fallback immediately to an unauthenticated public query!
+                has_auth = any(k.lower() == "authorization" for k in headers.keys())
+                is_bad_creds = (
+                    resp.status_code == 401
+                    or (resp.status_code == 403 and "bad credentials" in resp.text.lower())
+                )
+                if has_auth and is_bad_creds:
+                    logger.warning(
+                        f"GitHub API rejected request with HTTP {resp.status_code} Bad Credentials for {url}. "
+                        "Configured GITHUB_TOKEN is invalid or expired. Retrying public endpoint unauthenticated."
+                    )
+                    self._token_is_invalid = True
+                    unauth_headers = {k: v for k, v in headers.items() if k.lower() != "authorization"}
+                    retry_resp = await client.get(url, headers=unauth_headers, params=params, timeout=timeout_val)
+                    return retry_resp
+
                 return resp
             except (httpx.ConnectTimeout, httpx.ConnectError, httpx.ReadTimeout):
                 if attempt < retries:
@@ -292,8 +316,8 @@ class GitHubService:
                 self._handle_rate_limit(resp)
             elif "bad credentials" in resp.text.lower():
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid GitHub personal access token configured in backend/.env. Please verify or update GITHUB_TOKEN.",
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="GitHub upstream API rejected authentication (Bad credentials). Please verify or update server GITHUB_TOKEN.",
                 )
             else:
                 raise HTTPException(
@@ -302,8 +326,8 @@ class GitHubService:
                 )
         elif resp.status_code == 401:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid GitHub personal access token configured in backend/.env. Please verify or update GITHUB_TOKEN.",
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="GitHub upstream API rejected authentication (HTTP 401 Bad credentials). Please verify or update server GITHUB_TOKEN.",
             )
         elif resp.status_code == 404:
             raise HTTPException(
@@ -320,7 +344,7 @@ class GitHubService:
             )
         elif resp.status_code != 200:
             raise HTTPException(
-                status_code=resp.status_code,
+                status_code=status.HTTP_502_BAD_GATEWAY if resp.status_code in (401, 403) else resp.status_code,
                 detail=f"GitHub API request returned error {resp.status_code}. Please verify the handle and try again.",
             )
 
@@ -413,9 +437,21 @@ class GitHubService:
                     self._handle_rate_limit(resp)
                 if all_repos:
                     break
+                if "bad credentials" in resp.text.lower():
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail="GitHub upstream API rejected authentication (Bad credentials). Please verify or update server GITHUB_TOKEN.",
+                    )
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="GitHub API access forbidden during repository fetch.",
+                )
+            elif resp.status_code == 401:
+                if all_repos:
+                    break
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="GitHub upstream API rejected repository query authentication (HTTP 401 Bad credentials). Please verify server GITHUB_TOKEN.",
                 )
             elif resp.status_code >= 500:
                 if all_repos:

@@ -115,8 +115,16 @@ class Settings(BaseSettings):
 
     @property
     def github_callback_url(self) -> str:
-        """Retrieves configured callback URL with fallback."""
-        return self.GITHUB_CALLBACK_URL or self.GITHUB_REDIRECT_URI or "http://localhost:5173/auth/callback"
+        """Retrieves configured callback URL with intelligent environment-aware fallback."""
+        if self.GITHUB_CALLBACK_URL and self.GITHUB_CALLBACK_URL.strip():
+            return self.GITHUB_CALLBACK_URL.strip()
+        if self.GITHUB_REDIRECT_URI and self.GITHUB_REDIRECT_URI.strip() and "localhost" not in self.GITHUB_REDIRECT_URI:
+            return self.GITHUB_REDIRECT_URI.strip()
+        # Derive from FRONTEND_ORIGIN if set to a non-localhost domain (e.g. Vercel production)
+        origin = self.FRONTEND_ORIGIN.split(",")[0].strip() if self.FRONTEND_ORIGIN else ""
+        if origin and "localhost" not in origin and "127.0.0.1" not in origin:
+            return f"{origin.rstrip('/')}/auth/callback"
+        return self.GITHUB_REDIRECT_URI or "http://localhost:5173/auth/callback"
 
     @property
     def allowed_github_accounts_list(self) -> list[str]:
